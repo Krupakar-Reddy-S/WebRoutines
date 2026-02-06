@@ -80,6 +80,22 @@ export async function upsertRoutineSession(session: RoutineSession): Promise<voi
   });
 }
 
+export async function updateRoutineSession(session: RoutineSession): Promise<void> {
+  const state = await getRunnerState();
+  const sessions = state.sessions.map((existing) => (
+    existing.routineId === session.routineId ? session : existing
+  ));
+
+  if (!sessions.some((existing) => existing.routineId === session.routineId)) {
+    sessions.unshift(session);
+  }
+
+  await setRunnerState({
+    sessions,
+    focusedRoutineId: state.focusedRoutineId,
+  });
+}
+
 export async function removeRoutineSession(routineId: number): Promise<boolean> {
   const state = await getRunnerState();
   const sessions = state.sessions.filter((session) => session.routineId !== routineId);

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/db';
+import { isTextInputTarget } from '@/lib/dom';
 import {
   navigateSessionByOffset,
   openCurrentSessionLink,
@@ -26,6 +27,7 @@ import {
   setRequestedSidepanelView,
   subscribeToRunnerState,
 } from '@/lib/session';
+import { formatElapsed } from '@/lib/time';
 import { useSettings } from '@/lib/use-settings';
 import type { RoutineSession } from '@/lib/types';
 
@@ -39,6 +41,7 @@ function App() {
   const [runnerState, setRunnerState] = useState<RunnerState>({ sessions: [], focusedRoutineId: null });
   const [status, setStatus] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const focusedSession = useMemo(() => {
     if (runnerState.sessions.length === 0) {
@@ -79,6 +82,14 @@ function App() {
     const unsubscribe = subscribeToRunnerState(setRunnerState);
 
     return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setClockNow(Date.now());
+    }, 60_000);
+
+    return () => window.clearInterval(timerId);
   }, []);
 
   useEffect(() => {
@@ -261,6 +272,9 @@ function App() {
               <p className="text-xs text-muted-foreground">
                 Step {focusedSession.currentIndex + 1} of {routine.links.length}
               </p>
+              <p className="text-xs text-muted-foreground">
+                Active {formatElapsed(focusedSession.startedAt, clockNow)}
+              </p>
               {currentLink && <p className="break-all text-xs text-muted-foreground">{currentLink.url}</p>}
               <p className="text-xs text-muted-foreground">Alt+Shift+Left/Right to move steps.</p>
               <Separator />
@@ -333,21 +347,6 @@ function App() {
         </CardFooter>
       </Card>
     </main>
-  );
-}
-
-function isTextInputTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  const tagName = target.tagName.toLowerCase();
-
-  return (
-    tagName === 'input'
-    || tagName === 'textarea'
-    || target.isContentEditable
-    || target.closest('[contenteditable="true"]') !== null
   );
 }
 

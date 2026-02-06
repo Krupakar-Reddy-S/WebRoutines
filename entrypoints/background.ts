@@ -9,7 +9,9 @@ import {
   getFocusModeActive,
   getRunnerState,
   handleRunnerGroupRemoved,
+  removeRoutineSession,
   setFocusModeActive,
+  updateRoutineSession,
 } from '@/lib/session';
 
 interface FocusControllerGetStateMessage {
@@ -54,19 +56,33 @@ async function configureSidePanelAction() {
 }
 
 function attachRunnerLifecycleListeners() {
-  if (!browser.tabGroups?.onRemoved) {
-    return;
+  if (browser.tabGroups?.onRemoved) {
+    browser.tabGroups.onRemoved.addListener((group) => {
+      const groupId = resolveGroupId(group);
+
+      if (typeof groupId !== 'number') {
+        return;
+      }
+
+      void handleRunnerGroupRemoved(groupId);
+    });
   }
 
-  browser.tabGroups.onRemoved.addListener((group) => {
-    const groupId = resolveGroupId(group);
+  if (browser.tabs?.onRemoved) {
+    browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
+      if (removeInfo?.isWindowClosing) {
+        return;
+      }
 
-    if (typeof groupId !== 'number') {
-      return;
-    }
+      void handleRunnerTabRemoved(tabId);
+    });
+  }
 
-    void handleRunnerGroupRemoved(groupId);
-  });
+  if (browser.tabs?.onMoved) {
+    browser.tabs.onMoved.addListener((tabId) => {
+      void handleRunnerTabMoved(tabId);
+    });
+  }
 }
 
 function resolveGroupId(group: unknown): number | null {
@@ -81,6 +97,130 @@ function resolveGroupId(group: unknown): number | null {
   const candidate = group as { id?: unknown };
 
   return typeof candidate.id === 'number' ? candidate.id : null;
+}
+
+async function handleRunnerTabRemoved(tabId: number) {
+  if (typeof tabId !== 'number') {
+    return;
+  }
+
+  const state = await getRunnerState();
+
+  for (const session of state.sessions) {
+    if (!session.tabIds.includes(tabId)) {
+      continue;
+    }
+
+    const removedIndex = session.tabIds.indexOf(tabId);
+    const nextTabIds = session.tabIds.map((id, index) => (
+      index === removedIndex ? -1 : id
+    ));
+    const validTabIds = nextTabIds.filter(isValidTabId);
+
+    if (validTabIds.length === 0) {
+      await removeRoutineSession(session.routineId);
+      continue;
+    }
+
+    let nextTabId = session.tabId;
+    let nextIndex = session.currentIndex;
+
+    if (session.tabId === tabId) {
+      const forwardIndex = findNextValidIndex(nextTabIds, removedIndex + 1);
+      const backwardIndex = findPreviousValidIndex(nextTabIds, removedIndex - 1);
+      const resolvedIndex = forwardIndex ?? backwardIndex ?? 0;
+
+      nextIndex = resolvedIndex;
+      nextTabId = isValidTabId(nextTabIds[resolvedIndex]) ? nextTabIds[resolvedIndex] : null;
+    }
+
+    await updateRoutineSession({
+      ...session,
+      tabIds: nextTabIds,
+      tabId: nextTabId,
+      currentIndex: nextIndex >= 0 ? nextIndex : 0,
+    });
+  }
+}
+
+async function handleRunnerTabMoved(tabId: number) {
+  if (typeof tabId !== 'number') {
+    return;
+  }
+
+  const state = await getRunnerState();
+
+  for (const session of state.sessions) {
+    if (!session.tabIds.includes(tabId)) {
+      continue;
+    }
+
+    if (session.mode !== 'tab-group' || typeof session.tabGroupId !== 'number') {
+      continue;
+    }
+
+    const groupTabs = await browser.tabs.query({ groupId: session.tabGroupId });
+    if (groupTabs.length === 0) {
+      continue;
+    }
+
+    const orderedIds = groupTabs
+      .map((tab) => ({ id: tab.id, index: tab.index }))
+      .filter((tab) => typeof tab.id === 'number')
+      .sort((left, right) => left.index - right.index)
+      .map((tab) => tab.id as number);
+
+    if (orderedIds.length === 0 || arraysEqual(orderedIds, session.tabIds)) {
+      continue;
+    }
+
+    const activeIndex = typeof session.tabId === 'number'
+      ? orderedIds.indexOf(session.tabId)
+      : 0;
+    const nextIndex = activeIndex >= 0 ? activeIndex : 0;
+    const nextTabId = typeof session.tabId === 'number' && activeIndex >= 0
+      ? session.tabId
+      : orderedIds[0] ?? null;
+
+    await updateRoutineSession({
+      ...session,
+      tabIds: orderedIds,
+      currentIndex: nextIndex,
+      tabId: nextTabId,
+    });
+  }
+}
+
+function isValidTabId(id: number | null | undefined): id is number {
+  return typeof id === 'number' && id >= 0;
+}
+
+function arraysEqual(left: number[], right: number[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
+function findNextValidIndex(values: number[], startIndex: number): number | null {
+  for (let index = startIndex; index < values.length; index += 1) {
+    if (isValidTabId(values[index])) {
+      return index;
+    }
+  }
+
+  return null;
+}
+
+function findPreviousValidIndex(values: number[], startIndex: number): number | null {
+  for (let index = startIndex; index >= 0; index -= 1) {
+    if (isValidTabId(values[index])) {
+      return index;
+    }
+  }
+
+  return null;
 }
 
 function attachControllerMessageBridge() {

@@ -350,14 +350,23 @@ async function navigateMultiTabGroup(
   }
 
   if (typeof tabId !== 'number') {
+    const groupTabs = typeof session.tabGroupId === 'number'
+      ? await browser.tabs.query({ groupId: session.tabGroupId })
+      : [];
     const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
     const createOptions: Record<string, unknown> = {
       url: targetUrl,
       active: true,
     };
 
-    if (typeof activeTab?.windowId === 'number') {
-      createOptions.windowId = activeTab.windowId;
+    const windowId = groupTabs[0]?.windowId ?? activeTab?.windowId;
+    if (typeof windowId === 'number') {
+      createOptions.windowId = windowId;
+    }
+
+    const insertIndex = resolveGroupInsertIndex(session, targetIndex, groupTabs);
+    if (typeof insertIndex === 'number') {
+      createOptions.index = insertIndex;
     }
 
     const createdTab = await browser.tabs.create(createOptions);
@@ -439,4 +448,40 @@ async function resolveTargetWindowId(): Promise<number | null> {
   }
 
   return null;
+}
+
+type TabSnapshot = { id?: number; index: number; windowId?: number };
+
+function resolveGroupInsertIndex(
+  session: RoutineSession,
+  targetIndex: number,
+  groupTabs: TabSnapshot[],
+): number | undefined {
+  if (groupTabs.length === 0) {
+    return undefined;
+  }
+
+  const tabIndexById = new Map<number, number>();
+
+  for (const tab of groupTabs) {
+    if (typeof tab.id === 'number') {
+      tabIndexById.set(tab.id, tab.index);
+    }
+  }
+
+  for (let index = targetIndex - 1; index >= 0; index -= 1) {
+    const prevTabId = session.tabIds[index];
+    if (typeof prevTabId === 'number' && tabIndexById.has(prevTabId)) {
+      return (tabIndexById.get(prevTabId) ?? 0) + 1;
+    }
+  }
+
+  for (let index = targetIndex + 1; index < session.tabIds.length; index += 1) {
+    const nextTabId = session.tabIds[index];
+    if (typeof nextTabId === 'number' && tabIndexById.has(nextTabId)) {
+      return tabIndexById.get(nextTabId);
+    }
+  }
+
+  return undefined;
 }
