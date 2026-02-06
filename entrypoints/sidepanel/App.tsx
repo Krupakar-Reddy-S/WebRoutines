@@ -78,6 +78,7 @@ function App() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -148,6 +149,14 @@ function App() {
     if (navigator.storage?.persist) {
       void navigator.storage.persist();
     }
+  }, []);
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setClockNow(Date.now());
+    }, 60_000);
+
+    return () => window.clearInterval(timerId);
   }, []);
 
   useEffect(() => {
@@ -546,41 +555,66 @@ function App() {
             </CardHeader>
             <CardContent className="space-y-2">
               {activeRunnerRows === undefined && <p className="text-sm text-muted-foreground">Loading runners...</p>}
-              {activeRunnerRows?.length === 0 && <p className="text-sm text-muted-foreground">No active runners.</p>}
+              {activeRunnerRows?.length === 0 && (
+                <div className="rounded-lg border border-dashed border-border/70 p-3">
+                  <p className="text-sm text-muted-foreground">No active runners right now.</p>
+                  <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => setView('routines')}>
+                    Start a routine
+                  </Button>
+                </div>
+              )}
 
-              {activeRunnerRows?.map(({ session, routine }) => (
-                <div key={session.routineId} className="rounded-lg border border-border/70 p-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium">{routine?.name ?? `Routine #${session.routineId}`}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {session.mode === 'same-tab' ? 'Single-tab group' : 'Multi-tab group'}
-                      </p>
+              {activeRunnerRows?.map(({ session, routine }) => {
+                const totalLinks = routine?.links.length ?? 0;
+                const stepNumber = totalLinks > 0 ? Math.min(session.currentIndex + 1, totalLinks) : 0;
+                const progressPercent = totalLinks > 0 ? Math.round((stepNumber / totalLinks) * 100) : 0;
+                const progressLabel = totalLinks > 0
+                  ? `Step ${stepNumber}/${totalLinks} (${progressPercent}%)`
+                  : 'Link count unavailable';
+
+                return (
+                  <div key={session.routineId} className="rounded-lg border border-border/70 p-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium">{routine?.name ?? `Routine #${session.routineId}`}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {session.mode === 'same-tab' ? 'Single-tab group' : 'Multi-tab group'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {progressLabel} · Active {formatElapsed(session.startedAt, clockNow)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {runnerState.focusedRoutineId === session.routineId && <Badge variant="secondary">Focused</Badge>}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void onFocusRoutineRunner(session.routineId)}
+                        >
+                          Focus
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => void onStopRoutine(session.routineId)}
+                          disabled={busyAction === `stop-${session.routineId}`}
+                        >
+                          Stop
+                        </Button>
+                      </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      {runnerState.focusedRoutineId === session.routineId && <Badge variant="secondary">Focused</Badge>}
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => void onFocusRoutineRunner(session.routineId)}
-                      >
-                        Focus
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => void onStopRoutine(session.routineId)}
-                        disabled={busyAction === `stop-${session.routineId}`}
-                      >
-                        Stop
-                      </Button>
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary transition-[width]"
+                        style={{ width: `${progressPercent}%` }}
+                      />
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
 
@@ -909,6 +943,28 @@ function toErrorMessage(value: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function formatElapsed(startedAt: number, now: number): string {
+  const elapsedMs = Math.max(0, now - startedAt);
+  const totalMinutes = Math.floor(elapsedMs / 60_000);
+
+  if (totalMinutes < 1) {
+    return 'just now';
+  }
+
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (minutes === 0) {
+    return `${hours}h`;
+  }
+
+  return `${hours}h ${minutes}m`;
 }
 
 function isTextInputTarget(target: EventTarget | null): boolean {
