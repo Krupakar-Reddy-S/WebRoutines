@@ -1,6 +1,17 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useState } from 'react';
 
+import { ThemeToggle } from '@/components/theme-toggle';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/db';
 import {
   navigateSessionByOffset,
@@ -102,46 +113,69 @@ function App() {
   }
 
   return (
-    <main className="popup">
-      <header>
-        <h1>WebRoutines</h1>
-        <p>Quick controls</p>
-      </header>
-
-      {!hasActiveSession && (
-        <p className="muted">No active routine. Open the side panel to start one.</p>
-      )}
-
-      {hasActiveSession && session && routine && (
-        <section className="session">
-          <p className="routine-name">{routine.name}</p>
-          <p className="muted">
-            Step {session.currentIndex + 1} of {routine.links.length}
-          </p>
-          {currentLink && <p className="link">{currentLink.url}</p>}
-
-          <div className="actions">
-            <button type="button" onClick={() => void onNavigate(-1)} disabled={busyAction === 'previous'}>
-              Previous
-            </button>
-            <button type="button" onClick={() => void onNavigate(1)} disabled={busyAction === 'next'}>
-              Next
-            </button>
-            <button type="button" className="secondary" onClick={() => void onOpenCurrent()} disabled={busyAction === 'open-current'}>
-              Open current
-            </button>
-            <button type="button" className="danger" onClick={() => void onStopRoutine()} disabled={busyAction === 'stop'}>
-              Stop
-            </button>
+    <main className="w-80 space-y-2 bg-background p-2 text-foreground">
+      <Card size="sm">
+        <CardHeader>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <CardTitle>WebRoutines</CardTitle>
+              <CardDescription>Quick controls</CardDescription>
+            </div>
+            <ThemeToggle />
           </div>
-        </section>
-      )}
+        </CardHeader>
 
-      <button type="button" className="secondary full" onClick={() => void onOpenPanel()} disabled={busyAction === 'open-panel'}>
-        Open side panel
-      </button>
+        <CardContent className="space-y-3">
+          {!hasActiveSession && (
+            <p className="text-xs text-muted-foreground">No active routine. Open side panel to start one.</p>
+          )}
 
-      {status && <p className="status">{status}</p>}
+          {hasActiveSession && session && routine && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{routine.name}</p>
+              <p className="text-xs text-muted-foreground">
+                Step {session.currentIndex + 1} of {routine.links.length}
+              </p>
+              {currentLink && <p className="break-all text-xs text-muted-foreground">{currentLink.url}</p>}
+              <Separator />
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" size="sm" onClick={() => void onNavigate(-1)} disabled={busyAction === 'previous'}>
+                  Previous
+                </Button>
+                <Button type="button" size="sm" onClick={() => void onNavigate(1)} disabled={busyAction === 'next'}>
+                  Next
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void onOpenCurrent()}
+                  disabled={busyAction === 'open-current'}
+                >
+                  Open current
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => void onStopRoutine()}
+                  disabled={busyAction === 'stop'}
+                >
+                  Stop
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+
+        <CardFooter className="flex-col gap-2">
+          <Button type="button" variant="outline" className="w-full" onClick={() => void onOpenPanel()} disabled={busyAction === 'open-panel'}>
+            Open side panel
+          </Button>
+
+          {status && <p className="w-full text-xs text-muted-foreground">{status}</p>}
+        </CardFooter>
+      </Card>
     </main>
   );
 }

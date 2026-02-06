@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'wxt';
 
 export default defineConfig({
@@ -10,4 +11,7 @@ export default defineConfig({
       default_title: 'WebRoutines Controls',
     },
   },
+  vite: () => ({
+    plugins: [tailwindcss()],
+  }),
 });
