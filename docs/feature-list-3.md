@@ -32,7 +32,7 @@ Ship low-complexity UI/UX improvements that make routine running and management 
 - [x] Task 2: Routines search + compact link previews + focus action.
 - [x] Task 3: Editor bulk URL add + drag/drop affordance polish.
 - [x] Task 4: Feedback/accessibility polish in sidepanel/popup.
-- [ ] Task 5: docs finalization + compile/build validation checkpoint.
+- [x] Task 5: docs finalization + compile/build validation checkpoint.
 
 ## Step log
 - 2026-02-06: Created `feature-list-3.md` with approved simple UX scope and task checklist.
@@ -40,3 +40,4 @@ Ship low-complexity UI/UX improvements that make routine running and management 
 - 2026-02-06: Added routine search, expandable/collapsed long link previews, and quick focus action for already-running routines.
 - 2026-02-06: Added bulk URL paste in the editor and improved drag/drop reorder feedback with clear target highlighting.
 - 2026-02-06: Added transient status auto-clear and improved live-region accessibility semantics for sidepanel and popup feedback.
+- 2026-02-06: Finalized Feature 3 docs and validated with successful `bun run compile` and `bun run build`.

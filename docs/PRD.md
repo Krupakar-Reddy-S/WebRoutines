@@ -93,3 +93,7 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - 2026-02-06: Feature 2 updates started: session model moved to multi-runner state with focused routine and per-routine runner ownership.
 - 2026-02-06: Feature 2 updates: sidepanel split into Runner Home / Routines / Editor views for cleaner routine management UX.
 - 2026-02-06: Feature 2 updates: runner lifecycle refined so runner stop/delete closes runner-owned tabs and group removal auto-clears session.
+- 2026-02-06: Feature 3 updates: Runner Home polished with per-runner progress, elapsed runtime display, and better empty-state CTA.
+- 2026-02-06: Feature 3 updates: routine management improved with search, compact link previews, and quick focus action for active runners.
+- 2026-02-06: Feature 3 updates: editor now supports bulk URL paste and clearer drag/drop reorder affordances.
+- 2026-02-06: Feature 3 updates: status/live-region accessibility improved and validated with successful `bun run compile` and `bun run build`.

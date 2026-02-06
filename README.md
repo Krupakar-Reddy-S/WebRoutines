@@ -47,3 +47,7 @@ Build output is generated in `.output/chrome-mv3`.
 - Import/export routine backups as JSON.
 - Keyboard shortcuts for navigation: `Alt+Shift+Left` and `Alt+Shift+Right`.
 - Light/dark theme toggle in side panel and popup.
+- Runner Home shows per-runner progress + elapsed runtime, with quick CTA when no runners are active.
+- Routines page includes routine-name search, compact link previews, and quick focus for running routines.
+- Routine editor supports bulk URL paste (one URL per line) and improved drag/drop reorder feedback.
+- Side panel and popup status messages now auto-clear and use improved ARIA live-region semantics.
