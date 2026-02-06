@@ -28,7 +28,7 @@ Restructure sidepanel UX around a runner-first home and dedicated routine manage
 ## Checklist
 - [x] Define Feature List 2 scope, decisions, and delivery sequence.
 - [x] Task 1: add multi-runner session model + background lifecycle listeners.
-- [ ] Task 2: rework navigation layer for grouped single/multi modes and per-routine runners.
+- [x] Task 2: rework navigation layer for grouped single/multi modes and per-routine runners.
 - [ ] Task 3: split sidepanel into runner home, routines page, and routine editor page.
 - [ ] Task 4: update popup to work with focused runner in multi-runner state.
 - [ ] Task 5: docs update + compile/build validation checkpoint.
@@ -37,3 +37,6 @@ Restructure sidepanel UX around a runner-first home and dedicated routine manage
 - 2026-02-06: Created `feature-list-2.md` with agreed scope and task breakdown.
 - 2026-02-06: Implemented multi-runner session state in `browser.storage.session` with focused routine tracking and single-runner compatibility wrappers.
 - 2026-02-06: Added background `tabGroups.onRemoved` listener to automatically close runner sessions when runner groups are removed.
+- 2026-02-06: Refactored navigation to enforce one runner per routine, allow multi-routine concurrent runners, and return `alreadyRunning` on start attempts.
+- 2026-02-06: Switched single mode to dedicated single-tab group and changed multi mode navigation to activate existing tabs without URL rewrite refresh.
+- 2026-02-06: Added per-routine stop/destroy flows that close runner-owned tabs before removing runner session state.

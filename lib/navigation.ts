@@ -1,11 +1,22 @@
 import { db } from '@/lib/db';
-import { clearActiveSession, getActiveSession, setActiveSession } from '@/lib/session';
+import {
+  getRoutineSession,
+  getRunnerState,
+  removeRoutineSession,
+  setFocusedRoutine,
+  upsertRoutineSession,
+} from '@/lib/session';
 import type { NavigationMode, Routine, RoutineSession } from '@/lib/types';
+
+export interface StartRoutineResult {
+  session: RoutineSession;
+  alreadyRunning: boolean;
+}
 
 export async function startRoutine(
   routine: Routine,
   mode: NavigationMode,
-): Promise<RoutineSession> {
+): Promise<StartRoutineResult> {
   if (!routine.id) {
     throw new Error('Routine is missing an id. Save it before running.');
   }
@@ -14,50 +25,87 @@ export async function startRoutine(
     throw new Error('Add at least one link before starting a routine.');
   }
 
+  const existing = await getRoutineSession(routine.id);
+
+  if (existing) {
+    await setFocusedRoutine(routine.id);
+    return {
+      session: existing,
+      alreadyRunning: true,
+    };
+  }
+
   const session = mode === 'same-tab'
-    ? await startInSameTab(routine)
-    : await startInTabGroup(routine);
+    ? await startInSingleTabGroup(routine)
+    : await startInMultiTabGroup(routine);
 
-  await setActiveSession(session);
-  return session;
+  await upsertRoutineSession(session);
+
+  return {
+    session,
+    alreadyRunning: false,
+  };
 }
 
-export async function navigateSessionByOffset(offset: number): Promise<RoutineSession | null> {
-  const session = await getActiveSession();
+export async function navigateSessionByOffset(
+  routineIdOrOffset: number,
+  maybeOffset?: number,
+): Promise<RoutineSession | null> {
+  const target = await resolveTargetSession(routineIdOrOffset, maybeOffset);
 
-  if (!session) {
+  if (!target) {
     return null;
   }
 
-  const routine = await db.routines.get(session.routineId);
+  const { routine, session } = target;
 
-  if (!routine || routine.links.length === 0) {
-    await clearActiveSession();
-    return null;
-  }
-
-  return navigateToIndex(routine, session, session.currentIndex + offset);
+  return navigateToIndex(routine, session, session.currentIndex + (maybeOffset ?? routineIdOrOffset));
 }
 
-export async function openCurrentSessionLink(): Promise<RoutineSession | null> {
-  const session = await getActiveSession();
+export async function openCurrentSessionLink(routineId?: number): Promise<RoutineSession | null> {
+  const target = await resolveTargetSession(routineId);
 
-  if (!session) {
+  if (!target) {
     return null;
   }
 
-  const routine = await db.routines.get(session.routineId);
-
-  if (!routine || routine.links.length === 0) {
-    await clearActiveSession();
-    return null;
-  }
+  const { routine, session } = target;
 
   return navigateToIndex(routine, session, session.currentIndex);
 }
 
-export async function stopActiveRoutine(): Promise<void> {
-  await clearActiveSession();
+export async function stopActiveRoutine(routineId?: number): Promise<boolean> {
+  const target = await resolveTargetSession(routineId);
+
+  if (!target) {
+    return false;
+  }
+
+  await destroyRoutineSession(target.session);
+  return true;
+}
+
+export async function stopRoutineById(routineId: number): Promise<boolean> {
+  const session = await getRoutineSession(routineId);
+
+  if (!session) {
+    return false;
+  }
+
+  await destroyRoutineSession(session);
+  return true;
+}
+
+export async function stopAllRoutines(): Promise<void> {
+  const state = await getRunnerState();
+
+  for (const session of state.sessions) {
+    await closeRunnerTabs(session);
+  }
+
+  for (const session of state.sessions) {
+    await removeRoutineSession(session.routineId);
+  }
 }
 
 export async function openSidePanelForCurrentWindow(): Promise<void> {
@@ -85,30 +133,98 @@ export async function navigateToIndex(
 
   const targetIndex = clampIndex(index, routine.links.length);
   const nextSession = session.mode === 'same-tab'
-    ? await navigateSameTab(routine, session, targetIndex)
-    : await navigateTabGroup(routine, session, targetIndex);
+    ? await navigateSingleTabGroup(routine, session, targetIndex)
+    : await navigateMultiTabGroup(routine, session, targetIndex);
 
-  await setActiveSession(nextSession);
+  await upsertRoutineSession(nextSession);
   return nextSession;
 }
 
-async function startInSameTab(routine: Routine): Promise<RoutineSession> {
+async function resolveTargetSession(
+  routineIdOrOffset?: number,
+  maybeOffset?: number,
+): Promise<{ routine: Routine; session: RoutineSession } | null> {
+  const state = await getRunnerState();
+
+  if (state.sessions.length === 0) {
+    return null;
+  }
+
+  const routineId = maybeOffset === undefined
+    ? state.focusedRoutineId ?? state.sessions[0].routineId
+    : routineIdOrOffset;
+
+  if (typeof routineId !== 'number') {
+    return null;
+  }
+
+  const session = state.sessions.find((item) => item.routineId === routineId);
+
+  if (!session) {
+    return null;
+  }
+
+  const routine = await db.routines.get(session.routineId);
+
+  if (!routine || routine.links.length === 0) {
+    await destroyRoutineSession(session);
+    return null;
+  }
+
+  await setFocusedRoutine(session.routineId);
+
+  return {
+    routine,
+    session,
+  };
+}
+
+async function destroyRoutineSession(session: RoutineSession): Promise<void> {
+  await closeRunnerTabs(session);
+  await removeRoutineSession(session.routineId);
+}
+
+async function closeRunnerTabs(session: RoutineSession): Promise<void> {
+  const tabIds = dedupeNumbers([session.tabId, ...session.tabIds]);
+
+  if (tabIds.length > 0) {
+    try {
+      await browser.tabs.remove(tabIds);
+    } catch {
+      // Ignore close failures (tabs may already be gone).
+    }
+  }
+}
+
+async function startInSingleTabGroup(routine: Routine): Promise<RoutineSession> {
   const firstUrl = routine.links[0].url;
   const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
 
-  let tabId = activeTab?.id ?? null;
+  const createOptions: Record<string, unknown> = {
+    url: firstUrl,
+    active: true,
+  };
+
+  if (typeof activeTab?.windowId === 'number') {
+    createOptions.windowId = activeTab.windowId;
+  }
+
+  const createdTab = await browser.tabs.create(createOptions);
+  const tabId = createdTab.id ?? null;
+
+  let tabGroupId: number | null = null;
 
   if (typeof tabId === 'number') {
     try {
-      await browser.tabs.update(tabId, { url: firstUrl, active: true });
+      tabGroupId = await browser.tabs.group({ tabIds: [tabId] });
+      await browser.tabGroups.update(tabGroupId, {
+        title: `${routine.name} (single)`,
+        color: 'blue',
+        collapsed: false,
+      });
     } catch {
-      tabId = null;
+      tabGroupId = null;
     }
-  }
-
-  if (typeof tabId !== 'number') {
-    const createdTab = await browser.tabs.create({ url: firstUrl, active: true });
-    tabId = createdTab.id ?? null;
   }
 
   return {
@@ -116,13 +232,13 @@ async function startInSameTab(routine: Routine): Promise<RoutineSession> {
     mode: 'same-tab',
     currentIndex: 0,
     tabId,
-    tabGroupId: null,
+    tabGroupId,
     tabIds: typeof tabId === 'number' ? [tabId] : [],
     startedAt: Date.now(),
   };
 }
 
-async function startInTabGroup(routine: Routine): Promise<RoutineSession> {
+async function startInMultiTabGroup(routine: Routine): Promise<RoutineSession> {
   const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
   const tabIds: number[] = [];
 
@@ -137,19 +253,20 @@ async function startInTabGroup(routine: Routine): Promise<RoutineSession> {
     }
 
     const createdTab = await browser.tabs.create(createOptions);
+
     if (typeof createdTab.id === 'number') {
-      tabIds.push(createdTab.id);
+      tabIds[index] = createdTab.id;
     }
   }
 
   let tabGroupId: number | null = null;
-  const groupableTabIds = asNonEmpty(tabIds);
+  const groupableTabIds = asNonEmpty(tabIds.filter((id) => typeof id === 'number'));
 
   if (groupableTabIds) {
     try {
       tabGroupId = await browser.tabs.group({ tabIds: groupableTabIds });
       await browser.tabGroups.update(tabGroupId, {
-        title: routine.name,
+        title: `${routine.name} (multi)`,
         color: 'blue',
         collapsed: false,
       });
@@ -164,12 +281,12 @@ async function startInTabGroup(routine: Routine): Promise<RoutineSession> {
     currentIndex: 0,
     tabId: tabIds[0] ?? null,
     tabGroupId,
-    tabIds,
+    tabIds: tabIds.map((id) => id ?? -1),
     startedAt: Date.now(),
   };
 }
 
-async function navigateSameTab(
+async function navigateSingleTabGroup(
   routine: Routine,
   session: RoutineSession,
   targetIndex: number,
@@ -186,34 +303,27 @@ async function navigateSameTab(
   }
 
   if (typeof tabId !== 'number') {
-    const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
-
-    if (typeof activeTab?.id === 'number') {
-      tabId = activeTab.id;
-
-      try {
-        await browser.tabs.update(tabId, { url: targetUrl, active: true });
-      } catch {
-        tabId = null;
-      }
-    }
-  }
-
-  if (typeof tabId !== 'number') {
     const createdTab = await browser.tabs.create({ url: targetUrl, active: true });
     tabId = createdTab.id ?? null;
+
+    if (typeof tabId === 'number' && typeof session.tabGroupId === 'number') {
+      try {
+        await browser.tabs.group({ groupId: session.tabGroupId, tabIds: [tabId] });
+      } catch {
+        // Keep navigation functional even if group assignment fails.
+      }
+    }
   }
 
   return {
     ...session,
     currentIndex: targetIndex,
     tabId,
-    tabGroupId: null,
     tabIds: typeof tabId === 'number' ? [tabId] : [],
   };
 }
 
-async function navigateTabGroup(
+async function navigateMultiTabGroup(
   routine: Routine,
   session: RoutineSession,
   targetIndex: number,
@@ -225,7 +335,6 @@ async function navigateTabGroup(
   if (typeof tabId === 'number') {
     try {
       await browser.tabs.update(tabId, { active: true });
-      await browser.tabs.update(tabId, { url: targetUrl });
     } catch {
       tabId = null;
     }
@@ -264,6 +373,18 @@ async function navigateTabGroup(
     tabId,
     tabIds,
   };
+}
+
+function dedupeNumbers(values: Array<number | null | undefined>): number[] {
+  const dedupe = new Set<number>();
+
+  for (const value of values) {
+    if (typeof value === 'number' && value >= 0) {
+      dedupe.add(value);
+    }
+  }
+
+  return [...dedupe];
 }
 
 function asNonEmpty(values: number[]): [number, ...number[]] | null {
