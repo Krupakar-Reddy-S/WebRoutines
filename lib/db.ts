@@ -1,15 +1,23 @@
 import Dexie, { type Table } from 'dexie';
 
-import type { Routine } from '@/lib/types';
+import type { Routine, RoutineRun, RoutineRunEvent } from '@/lib/types';
 
 class WebRoutinesDb extends Dexie {
   routines!: Table<Routine, number>;
+  runs!: Table<RoutineRun, number>;
+  runEvents!: Table<RoutineRunEvent, number>;
 
   constructor() {
     super('WebRoutinesDB');
 
     this.version(1).stores({
       routines: '++id,name,createdAt,updatedAt',
+    });
+
+    this.version(2).stores({
+      routines: '++id,name,lastRunAt,createdAt,updatedAt',
+      runs: '++id,routineId,startedAt,stoppedAt',
+      runEvents: '++id,runId,routineId,timestamp,type',
     });
   }
 }

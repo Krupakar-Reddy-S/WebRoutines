@@ -4,9 +4,12 @@ import {
   getRunnerState,
   removeRoutineSession,
   setFocusedRoutine,
+  updateRoutineSession,
   upsertRoutineSession,
 } from '@/lib/session';
-import type { NavigationMode, Routine, RoutineSession } from '@/lib/types';
+import { setRoutineLastRunAt } from '@/lib/routines';
+import { createRunForSession, ensureRunForSession, finalizeRun, logStepChange } from '@/lib/run-history';
+import type { NavigationMode, Routine, RoutineSession, RunStopReason } from '@/lib/types';
 
 export interface StartRoutineResult {
   session: RoutineSession;
@@ -29,8 +32,17 @@ export async function startRoutine(
 
   if (existing) {
     await setFocusedRoutine(routine.id);
+    const ensured = await ensureRunForSession(existing, routine);
+    let session = existing;
+
+    if (ensured?.created) {
+      session = { ...existing, runId: ensured.runId };
+      await updateRoutineSession(session);
+      await setRoutineLastRunAt(routine.id, existing.startedAt);
+    }
+
     return {
-      session: existing,
+      session,
       alreadyRunning: true,
     };
   }
@@ -39,6 +51,9 @@ export async function startRoutine(
     ? await startInSingleTabGroup(routine)
     : await startInMultiTabGroup(routine);
 
+  const runId = await createRunForSession(routine, session, mode);
+  session.runId = runId;
+  await setRoutineLastRunAt(routine.id, session.startedAt);
   await upsertRoutineSession(session);
 
   return {
@@ -81,7 +96,7 @@ export async function stopActiveRoutine(routineId?: number): Promise<boolean> {
     return false;
   }
 
-  await destroyRoutineSession(target.session);
+  await destroyRoutineSession(target.session, 'user-stop');
   return true;
 }
 
@@ -92,7 +107,7 @@ export async function stopRoutineById(routineId: number): Promise<boolean> {
     return false;
   }
 
-  await destroyRoutineSession(session);
+  await destroyRoutineSession(session, 'user-stop');
   return true;
 }
 
@@ -100,11 +115,7 @@ export async function stopAllRoutines(): Promise<void> {
   const state = await getRunnerState();
 
   for (const session of state.sessions) {
-    await closeRunnerTabs(session);
-  }
-
-  for (const session of state.sessions) {
-    await removeRoutineSession(session.routineId);
+    await destroyRoutineSession(session, 'user-stop');
   }
 }
 
@@ -141,9 +152,27 @@ export async function navigateToIndex(
   }
 
   const targetIndex = clampIndex(index, routine.links.length);
+  const runResult = await ensureRunForSession(session, routine);
+  let runId = session.runId;
+
+  if (runResult) {
+    runId = runResult.runId;
+    if (runResult.created) {
+      await setRoutineLastRunAt(routine.id!, session.startedAt);
+    }
+  }
+
   const nextSession = session.mode === 'same-tab'
     ? await navigateSingleTabGroup(routine, session, targetIndex)
     : await navigateMultiTabGroup(routine, session, targetIndex);
+
+  if (typeof runId === 'number') {
+    nextSession.runId = runId;
+  }
+
+  if (targetIndex !== session.currentIndex && typeof runId === 'number' && routine.id) {
+    await logStepChange(runId, routine.id, targetIndex);
+  }
 
   await upsertRoutineSession(nextSession);
   return nextSession;
@@ -176,7 +205,7 @@ async function resolveTargetSession(
   const routine = await db.routines.get(session.routineId);
 
   if (!routine || routine.links.length === 0) {
-    await destroyRoutineSession(session);
+    await destroyRoutineSession(session, 'system-stop');
     return null;
   }
 
@@ -188,7 +217,19 @@ async function resolveTargetSession(
   };
 }
 
-async function destroyRoutineSession(session: RoutineSession): Promise<void> {
+async function destroyRoutineSession(session: RoutineSession, stopReason: RunStopReason): Promise<void> {
+  if (typeof session.runId === 'number') {
+    await finalizeRun(session.runId, session.routineId, Date.now(), stopReason);
+  } else {
+    const routine = await db.routines.get(session.routineId);
+    if (routine?.id) {
+      const ensured = await ensureRunForSession(session, routine);
+      if (ensured?.runId) {
+        await finalizeRun(ensured.runId, session.routineId, Date.now(), stopReason);
+      }
+    }
+  }
+
   await closeRunnerTabs(session);
   await removeRoutineSession(session.routineId);
 }

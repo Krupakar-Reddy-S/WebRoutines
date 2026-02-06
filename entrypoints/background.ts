@@ -8,11 +8,11 @@ import {
 import {
   getFocusModeActive,
   getRunnerState,
-  handleRunnerGroupRemoved,
   removeRoutineSession,
   setFocusModeActive,
   updateRoutineSession,
 } from '@/lib/session';
+import { ensureRunForSession, finalizeRun, logStepChange } from '@/lib/run-history';
 
 interface FocusControllerGetStateMessage {
   type: 'focus-controller:get-state';
@@ -118,6 +118,7 @@ async function handleRunnerTabRemoved(tabId: number) {
     const validTabIds = nextTabIds.filter(isValidTabId);
 
     if (validTabIds.length === 0) {
+      await finalizeSessionRun(session, 'tabs-closed');
       await removeRoutineSession(session.routineId);
       continue;
     }
@@ -132,6 +133,10 @@ async function handleRunnerTabRemoved(tabId: number) {
 
       nextIndex = resolvedIndex;
       nextTabId = isValidTabId(nextTabIds[resolvedIndex]) ? nextTabIds[resolvedIndex] : null;
+    }
+
+    if (nextIndex !== session.currentIndex) {
+      await logStepChangeForSession(session, nextIndex);
     }
 
     await updateRoutineSession({
@@ -201,6 +206,55 @@ function arraysEqual(left: number[], right: number[]) {
   }
 
   return left.every((value, index) => value === right[index]);
+}
+
+async function handleRunnerGroupRemoved(groupId: number) {
+  const state = await getRunnerState();
+  const affected = state.sessions.filter((session) => session.tabGroupId === groupId);
+
+  if (affected.length === 0) {
+    return;
+  }
+
+  for (const session of affected) {
+    await finalizeSessionRun(session, 'group-removed');
+    await removeRoutineSession(session.routineId);
+  }
+}
+
+async function finalizeSessionRun(session: Parameters<typeof updateRoutineSession>[0], reason: 'tabs-closed' | 'group-removed') {
+  if (typeof session.runId === 'number') {
+    await finalizeRun(session.runId, session.routineId, Date.now(), reason);
+    return;
+  }
+
+  const routine = await db.routines.get(session.routineId);
+  if (!routine) {
+    return;
+  }
+
+  const ensured = await ensureRunForSession(session, routine);
+  if (ensured?.runId) {
+    await finalizeRun(ensured.runId, session.routineId, Date.now(), reason);
+  }
+}
+
+async function logStepChangeForSession(session: Parameters<typeof updateRoutineSession>[0], stepIndex: number) {
+  if (typeof session.runId === 'number') {
+    await logStepChange(session.runId, session.routineId, stepIndex);
+    return;
+  }
+
+  const routine = await db.routines.get(session.routineId);
+  if (!routine) {
+    return;
+  }
+
+  const ensured = await ensureRunForSession(session, routine);
+  if (ensured?.runId) {
+    await updateRoutineSession({ ...session, runId: ensured.runId });
+    await logStepChange(ensured.runId, session.routineId, stepIndex);
+  }
 }
 
 function findNextValidIndex(values: number[], startIndex: number): number | null {

@@ -74,7 +74,13 @@ export function createRoutineLink(url: string, title?: string): RoutineLink {
 }
 
 export async function listRoutines(): Promise<Routine[]> {
-  return db.routines.orderBy('updatedAt').reverse().toArray();
+  const routines = await db.routines.toArray();
+
+  return routines.sort((left, right) => {
+    const leftStamp = left.lastRunAt ?? left.updatedAt;
+    const rightStamp = right.lastRunAt ?? right.updatedAt;
+    return rightStamp - leftStamp;
+  });
 }
 
 export async function createRoutine(input: RoutineInput): Promise<number> {
@@ -98,6 +104,12 @@ export async function updateRoutine(id: number, input: RoutineInput): Promise<vo
 
 export async function deleteRoutine(id: number): Promise<void> {
   await db.routines.delete(id);
+}
+
+export async function setRoutineLastRunAt(id: number, timestamp: number): Promise<void> {
+  await db.routines.update(id, {
+    lastRunAt: timestamp,
+  });
 }
 
 export function createRoutineBackupPayload(routines: Routine[]) {

@@ -30,11 +30,12 @@ Phase A:
 - [x] Add HashRouter routing for sidepanel views.
 
 Phase B:
-- [ ] Add runs + runEvents tables and types.
-- [ ] Log run start/stop + step switches.
-- [ ] Add lastRunAt and recency ordering.
+- [x] Add runs + runEvents tables and types.
+- [x] Log run start/stop + step switches.
+- [x] Add lastRunAt and recency ordering.
 
 ## Step log
 - 2026-02-06: Created Feature List 5 with Phase A/Phase B scope split.
 - 2026-02-06: Implemented Phase A sidepanel decomposition, error boundary, shared helpers, tab lifecycle listeners, and popup elapsed time.
 - 2026-02-06: Added HashRouter routing for sidepanel views.
+- 2026-02-06: Implemented Phase B run history tables, run logging, and lastRunAt ordering.
