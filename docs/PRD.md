@@ -1,6 +1,6 @@
-# WebRoutines PRD (MVP)
+# WebRoutines PRD (Current)
 
-## Product scope (initial)
+## Product scope (current)
 WebRoutines is a Chrome MV3 side panel extension for daily, ordered website reading workflows.
 
 A user can:
@@ -12,12 +12,15 @@ A user can:
 - Navigate forward/backward through the routine sequence from:
   - The side panel (full controls).
   - A minimized popup (quick controls when side panel is not open).
+- Enter focus mode to use a compact on-page mini-controller.
 - Run multiple routines concurrently, with one active runner per routine.
+- Review run history data (stored locally; UI pending).
 
-For MVP:
+Current product constraints:
 - Browser target: Chrome only (no cross-browser support yet).
 - Storage: IndexedDB only for persistent data, implemented with Dexie.
 - Session state: `chrome.storage.session` for active routine/tab/index state so controls remain consistent across side panel/popup lifecycle.
+- Settings stored in `chrome.storage.local`.
 
 ## Problem statement
 People who read multiple static pages daily (blogs, docs, newsletters, dashboards) need a lightweight way to revisit them in a consistent order without manually opening/searching each URL every day.
@@ -28,26 +31,28 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - Keep quick navigation reachable via popup when side panel is minimized.
 - Preserve routine data locally and robustly with IndexedDB.
 
-## Non-goals (MVP)
+## Non-goals (current)
 - Cross-browser compatibility.
 - Cloud sync/account system.
 - Recommendation engine/auto-discovery of links.
 - Complex scheduling or reminders.
+- Full run history analytics UI (data exists, UI pending).
 
-## Technical decisions (based on research)
+## Technical decisions (current)
 - Build system: WXT (MV3 extension tooling), Bun package manager/runtime.
 - UI: React + TypeScript in side panel and popup.
 - Data: Dexie over IndexedDB.
 - Architecture: smart side panel + thin background worker.
-- Routing strategy: single-page style in side panel without browser history dependency.
-- Permissions: minimal initial permissions (`sidePanel`, `storage`, `tabGroups`), avoid broad `tabs` permission in MVP.
+- Routing strategy: HashRouter for side panel views.
+- Permissions: `sidePanel`, `storage`, `tabGroups`, `unlimitedStorage`, host permissions `<all_urls>`.
 
-## Data model (MVP)
+## Data model (current)
 
 ### Routine
 - `id` (number, auto)
 - `name` (string)
 - `links` (array of `{ id: string; url: string; title?: string }`)
+- `lastRunAt` (number, optional)
 - `createdAt` (number)
 - `updatedAt` (number)
 
@@ -63,18 +68,48 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - `tabGroupId` (number | null)
 - `tabIds` (number[])
 - `startedAt` (number)
+- `runId` (number | undefined)
 
-## UX outline (MVP)
+### Routine run record (`runs`)
+- `id` (number, auto)
+- `routineId` (number)
+- `startedAt` (number)
+- `stoppedAt` (number | null)
+- `stepsCompleted` (number)
+- `totalSteps` (number)
+- `completedFull` (boolean)
+- `mode` (`same-tab` | `tab-group`)
+- `durationMs` (number | null)
+- `stopReason` (`user-stop` | `tabs-closed` | `group-removed` | `system-stop` | `unknown`)
+
+### Routine run event (`runEvents`)
+- `id` (number, auto)
+- `runId` (number)
+- `routineId` (number)
+- `timestamp` (number)
+- `type` (`start` | `step` | `stop`)
+- `stepIndex` (number | undefined)
+
+### App settings (`chrome.storage.local`)
+- `staticTheme` (`system` | `light` | `dark`)
+- `defaultRunMode` (`same-tab` | `tab-group`)
+- `confirmBeforeStop` (boolean)
+- `focusModeEnabled` (boolean)
+
+## UX outline (current)
 - Side panel:
   - Runner Home (default): focused runner controls + active runner list.
   - Routines page: routine listing, start, delete, import/export.
   - Routine editor page: dedicated create/edit flow with ordered links.
+  - Settings page: theme + default run mode + focus mode toggle.
 - Popup (minimized controls):
   - Shows focused routine + current step.
   - Previous / next / stop / open side panel actions.
   - Quick "next runner" focus switch.
+- Focus mini-controller (optional):
+  - Compact pill on web pages with prev/next + sidebar controls.
 
-## Task checklist
+## Task checklist (original MVP)
 - [x] Task 1: Bootstrap extension foundation from research stack (WXT + MV3 + side panel + popup + background setup).
 - [x] Task 2: Add Dexie database schema, repositories, and session storage helpers.
 - [x] Task 3: Build side panel routine CRUD UI (create, list, delete, edit basic links).
@@ -97,3 +132,6 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - 2026-02-06: Feature 3 updates: routine management improved with search, compact link previews, and quick focus action for active runners.
 - 2026-02-06: Feature 3 updates: editor now supports bulk URL paste and clearer drag/drop reorder affordances.
 - 2026-02-06: Feature 3 updates: status/live-region accessibility improved and validated with successful `bun run compile` and `bun run build`.
+- 2026-02-06: Feature 4 updates: settings model + options page, focus mini-controller, adaptive accent split, and stability hardening.
+- 2026-02-06: Feature 5 Phase A: sidepanel decomposition, HashRouter routing, error boundary, and runner resilience improvements.
+- 2026-02-06: Feature 5 Phase B: run history foundation (`runs`, `runEvents`), run logging, and `lastRunAt` ordering.

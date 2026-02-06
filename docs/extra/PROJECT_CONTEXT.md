@@ -1,16 +1,15 @@
-# WebRoutines Project Context (Post Feature List 3 + 4)
+# WebRoutines Project Context (Post Feature List 5)
 
 ## Why this document exists
-This is a current technical brief for WebRoutines after Feature List 3 and Feature List 4 implementation, so product/planning discussions can happen without re-reading the full repo each time.
+This is a current technical brief for WebRoutines after Feature List 5 implementation, so product/planning discussions can happen without re-reading the full repo each time. It also includes a condensed history of Feature Lists 1–5 for quick handoff to new collaborators or AI tooling.
 
 ## 1) Current delivery state
 Last major implementation commit:
-- `87a51f7` (`2026-02-06`) - finalizes Feature List 4 settings + focus controller changes
+- `f5cfd1c` (`2026-02-06`) - Feature List 5 Phase B: run history foundation
 
 Recent milestone commits:
-- `b534b02` - Feature 3 chores (per-routine export + streamlined link input UX)
-- `dc91639` - Feature 3 docs/validation completion
-- `bcbfe18` - Feature 4 planning docs and adaptive theming notes
+- `4b6154a` - Feature List 5 Phase A: sidepanel split + routing + runner resilience
+- `87a51f7` - Feature List 4: settings + focus mini-controller + theme split
 
 Validation status:
 - `bun run compile` passes
@@ -72,8 +71,26 @@ Delivered:
   - Safe fallbacks when content-script storage access is restricted.
   - Sidebar-open fallback path in controller flow.
 
-## 5) Tech stack and runtime
-- WXT + React + TypeScript
+## 5) What changed in Feature List 5
+Feature 5 delivered Tier 1 reliability + foundation work.
+
+Phase A (cleanup + resilience) shipped:
+- Sidepanel decomposition into view components (`views/*`) and shared UI pieces.
+- HashRouter routing for sidepanel views.
+- Error boundary with recovery card.
+- Shared helpers for elapsed time and input target detection.
+- Runner lifecycle listeners for tab close and tab reorder.
+- Popup elapsed time display.
+- Tab-group step restoration now inserts new tabs in the correct step order.
+
+Phase B (run history foundation) shipped:
+- Dexie schema v2 with `runs` and `runEvents` tables.
+- Run start/stop + step switch logging.
+- `lastRunAt` on routines and “recently run” ordering.
+- Run finalization on stop, tab close, and group removal.
+
+## 6) Tech stack and runtime
+- WXT + React + TypeScript + React Router (HashRouter)
 - Tailwind v4 + shadcn/ui
 - Dexie/IndexedDB for routines data
 - `browser.storage.session` for runner/focus ephemeral state
@@ -85,16 +102,20 @@ Commands:
 - `bun run compile`
 - `bun run build`
 
-## 6) Extension architecture (current)
+## 7) Extension architecture (current)
 Entrypoints:
 - `entrypoints/background.ts`
   - Sidepanel behavior setup
-  - Tab-group cleanup listener
+  - Tab-group removal, tab close, and tab reorder listeners
   - Focus controller runtime message bridge
 - `entrypoints/sidepanel/App.tsx`
-  - Main app UI and internal view switching
+  - Shell + HashRouter routes
+  - Error boundary recovery
+- `entrypoints/sidepanel/views/*`
+  - `RunnerHomeView`, `RoutinesView`, `EditorView`, `SettingsView`
 - `entrypoints/popup/App.tsx`
   - Quick controls + open sidepanel/settings
+  - Elapsed time display
 - `entrypoints/options/App.tsx`
   - Dedicated options UI wired to shared settings
 - `entrypoints/focus-controller.content.ts`
@@ -102,21 +123,47 @@ Entrypoints:
 
 Core libs:
 - `lib/routines.ts` - routine CRUD, URL normalization, import/export parsing
-- `lib/navigation.ts` - start/stop/navigate + sidepanel open helpers
+- `lib/navigation.ts` - start/stop/navigate + sidepanel open helpers + run history wiring
 - `lib/session.ts` - active sessions, focused runner, focus mode, sidepanel view requests
 - `lib/settings.ts` - settings schema/defaults/read-write-subscribe
 - `lib/use-settings.ts` - React hook for synced settings state
 - `lib/adaptive-accent.ts` - adaptive accent extraction/cache utilities used by controller
+- `lib/run-history.ts` - run tracking (runs + run events)
+- `lib/dom.ts` - shared input target detection
+- `lib/time.ts` - shared elapsed time formatting
 
-## 7) Data model summary
-### IndexedDB (`routines`)
+## 8) Data model summary
+### IndexedDB (`routines`, `runs`, `runEvents`)
 ```ts
 interface Routine {
   id?: number;
   name: string;
   links: Array<{ id: string; url: string; title?: string }>;
+  lastRunAt?: number;
   createdAt: number;
   updatedAt: number;
+}
+
+interface RoutineRun {
+  id?: number;
+  routineId: number;
+  startedAt: number;
+  stoppedAt: number | null;
+  stepsCompleted: number;
+  totalSteps: number;
+  completedFull: boolean;
+  mode: 'same-tab' | 'tab-group';
+  durationMs: number | null;
+  stopReason?: 'user-stop' | 'tabs-closed' | 'group-removed' | 'system-stop' | 'unknown';
+}
+
+interface RoutineRunEvent {
+  id?: number;
+  runId: number;
+  routineId: number;
+  timestamp: number;
+  type: 'start' | 'step' | 'stop';
+  stepIndex?: number;
 }
 ```
 
@@ -130,6 +177,7 @@ interface RoutineSession {
   tabGroupId: number | null;
   tabIds: number[];
   startedAt: number;
+  runId?: number;
 }
 ```
 
@@ -150,7 +198,7 @@ interface AppSettings {
 }
 ```
 
-## 8) Permissions and APIs
+## 9) Permissions and APIs
 Current effective MV3 permissions:
 - `storage`
 - `tabGroups`
@@ -166,15 +214,45 @@ Main APIs used:
 - `browser.storage.session`
 - `browser.storage.onChanged`
 
-## 9) Known limitations
-- Sidepanel is still a single large `App.tsx` (no router decomposition yet).
+## 10) Known limitations
 - No automated unit/integration test suite yet.
-- No routine history analytics, scheduling, folders, or sharing.
+- No routine history analytics UI yet (data only).
+- No scheduling, folders, or sharing.
 - No omnibox/new-tab integrations.
 - Focus controller intentionally kept minimal (no expanded/detailed mode).
 
-## 10) Improvements doc alignment (done vs pending)
-Reference doc: `docs/extra/WEBROUTINES_IMPROVEMENTS.md`
+## 11) Feature list history (1–5)
+Feature List 1 (UI foundation + workflow upgrades):
+- Adopted shadcn-style component base + Tailwind v4 setup.
+- Added light/dark theme toggle and persistence.
+- Added drag/drop link reordering, import/export JSON backups, and runner hotkeys.
+
+Feature List 2 (runner-first UX + multi-runner lifecycle):
+- Runner Home as primary surface with separate routines/editor pages.
+- Multi-runner session model: one runner per routine, many routines concurrently.
+- Tab-group ownership for single/multi modes with stop/delete semantics.
+- Popup controls aligned with focused runner.
+
+Feature List 3 (sidepanel UX polish):
+- Runner Home progress + elapsed time + empty states.
+- Routine search, compact/expand link previews, quick focus action.
+- Editor bulk URL paste and clearer drag/drop feedback.
+- Accessibility + transient feedback polish.
+
+Feature List 4 (settings + focus controller + theme split):
+- Typed settings model in local storage + dedicated options page.
+- Focus mini-controller content script with previous/next + sidebar.
+- Adaptive accent only for controller; static theme for extension surfaces.
+- Stability hardening around controller/storage and settings flow.
+
+Feature List 5 (decomposition + resilience + history foundation):
+- Sidepanel split into views/components + HashRouter routes.
+- Error boundary + recovery card + shared time/input helpers.
+- Runner resilience: tab close/reorder sync + ordered tab restoration.
+- Run history foundation: runs/runEvents tables, start/stop/step logging, `lastRunAt`.
+
+## 12) Improvements doc alignment (done vs pending)
+Reference doc: `docs/extra/WEBROUTINES_IMPROVEMENTS_V2.md`
 
 Substantially done already:
 - Focus mini-controller MVP exists (compact pill + sidebar return + drag/persist).
@@ -183,10 +261,9 @@ Substantially done already:
 - Runner Home and editor got practical UX upgrades (Feature 3).
 
 Still pending from improvements doc:
-- Sidepanel router migration (`HashRouter`) and page/component decomposition.
 - Rich routine cards (favicon strip, richer metadata).
-- Tab lifecycle resilience listeners (`tabs.onRemoved`, `tabs.onUpdated` divergence handling).
-- Routine history/stats schema and UI.
+- Tab lifecycle resilience listeners (`tabs.onUpdated` divergence handling).
+- Routine history/stats UI.
 - Folders/categories.
 - Command palette.
 - Omnibox/new-tab integrations.
@@ -195,26 +272,19 @@ Still pending from improvements doc:
 - Onboarding flow.
 - Error boundary/recovery framework.
 
-## 11) Pragmatic next explorations (added for future planning)
+## 13) Pragmatic next explorations (added for future planning)
 Suggested to explore next (in this order):
-1. Sidepanel decomposition + lightweight routing:
-   - Split `entrypoints/sidepanel/App.tsx` into view components first.
-   - Add route-style state only after component split to reduce migration risk.
-2. Session resilience hardening:
-   - Implement `tabs.onRemoved` sync into sessions.
+1. Session resilience hardening:
    - Add minimal `tabs.onUpdated` divergence marker (without heavy UI first pass).
-3. Routine metadata upgrades with low schema risk:
-   - Add optional `lastRunAt`.
-   - Show better "recently used" ordering in routines view.
-4. Command palette in sidepanel:
+2. Routine history UI:
+   - Recent runs list + completion stats.
+3. Command palette in sidepanel:
    - Start routine, focus routine, stop routine, open settings.
-5. History MVP:
-   - Add `runs` table with start/stop timestamps and completion status.
-   - Keep UI simple (recent runs + completion rate).
+4. Routine card enrichment:
+   - Favicon strip + last run metadata.
 
 Nice-to-have but lower priority for now:
 - Folders/categories
 - Sharing/QR workflows
 - Omnibox/new-tab overrides
 - Per-step auto-advance and notes
-
