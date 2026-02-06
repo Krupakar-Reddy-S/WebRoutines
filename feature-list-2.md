@@ -31,7 +31,7 @@ Restructure sidepanel UX around a runner-first home and dedicated routine manage
 - [x] Task 2: rework navigation layer for grouped single/multi modes and per-routine runners.
 - [x] Task 3: split sidepanel into runner home, routines page, and routine editor page.
 - [x] Task 4: update popup to work with focused runner in multi-runner state.
-- [ ] Task 5: docs update + compile/build validation checkpoint.
+- [x] Task 5: docs update + compile/build validation checkpoint.
 
 ## Step log
 - 2026-02-06: Created `feature-list-2.md` with agreed scope and task breakdown.
@@ -43,3 +43,5 @@ Restructure sidepanel UX around a runner-first home and dedicated routine manage
 - 2026-02-06: Rebuilt sidepanel UX into three views (Runner Home, Routines, Editor) so routine management is separated from day-to-day runner controls.
 - 2026-02-06: Added active-runner focus switching and per-routine runner actions from Runner Home while keeping hotkeys on the focused runner.
 - 2026-02-06: Updated popup to consume multi-runner focused state, route controls to the focused routine runner, and add quick focused-runner switching.
+- 2026-02-06: Updated README and PRD documentation to reflect runner-first UX, grouped runner ownership, and multi-runner focused-session state.
+- 2026-02-06: Verified Feature 2 implementation with successful `bun run compile` and `bun run build`.

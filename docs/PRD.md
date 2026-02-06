@@ -7,11 +7,12 @@ A user can:
 - Create routines.
 - Add an ordered sequence of links to each routine.
 - Start a routine in one of two modes:
-  - Same tab mode: the current active tab navigates through the sequence.
-  - Tab group mode: all routine links open as tabs grouped under the routine name.
+  - Single-tab group mode: one dedicated tab in a dedicated group navigates through the sequence.
+  - Multi-tab group mode: all routine links open as tabs in a dedicated group under the routine name.
 - Navigate forward/backward through the routine sequence from:
   - The side panel (full controls).
   - A minimized popup (quick controls when side panel is not open).
+- Run multiple routines concurrently, with one active runner per routine.
 
 For MVP:
 - Browser target: Chrome only (no cross-browser support yet).
@@ -50,7 +51,11 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - `createdAt` (number)
 - `updatedAt` (number)
 
-### Active session (`chrome.storage.session`)
+### Active runner state (`chrome.storage.session`)
+- `activeSessions` (array of routine sessions)
+- `focusedRoutineId` (number | null)
+
+### Routine session record
 - `routineId` (number)
 - `mode` (`same-tab` | `tab-group`)
 - `currentIndex` (number)
@@ -61,13 +66,13 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 
 ## UX outline (MVP)
 - Side panel:
-  - Routine list.
-  - Create/edit routine form (name + multiline URLs).
-  - Start routine (same tab / tab group).
-  - Runner controls: previous, next, jump to link, open current.
+  - Runner Home (default): focused runner controls + active runner list.
+  - Routines page: routine listing, start, delete, import/export.
+  - Routine editor page: dedicated create/edit flow with ordered links.
 - Popup (minimized controls):
-  - Shows active routine + current step.
-  - Previous / next / open side panel actions.
+  - Shows focused routine + current step.
+  - Previous / next / stop / open side panel actions.
+  - Quick "next runner" focus switch.
 
 ## Task checklist
 - [x] Task 1: Bootstrap extension foundation from research stack (WXT + MV3 + side panel + popup + background setup).
@@ -85,3 +90,6 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - 2026-02-06: Task 4 completed with routine runner behavior for same-tab and tab-group modes plus previous/next/jump navigation.
 - 2026-02-06: Task 5 completed with minimized popup controls for previous/next/open-current/stop plus one-click side panel open.
 - 2026-02-06: Task 6 completed with successful `bun run compile` and `bun run build`, plus README setup/build/load instructions.
+- 2026-02-06: Feature 2 updates started: session model moved to multi-runner state with focused routine and per-routine runner ownership.
+- 2026-02-06: Feature 2 updates: sidepanel split into Runner Home / Routines / Editor views for cleaner routine management UX.
+- 2026-02-06: Feature 2 updates: runner lifecycle refined so runner stop/delete closes runner-owned tabs and group removal auto-clears session.
