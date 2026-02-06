@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useState } from 'react';
 
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -19,36 +20,56 @@ import {
   openSidePanelForCurrentWindow,
   stopActiveRoutine,
 } from '@/lib/navigation';
-import { getActiveSession, subscribeToActiveSession } from '@/lib/session';
+import { getRunnerState, setFocusedRoutine, subscribeToRunnerState } from '@/lib/session';
 import type { RoutineSession } from '@/lib/types';
 
+interface RunnerState {
+  sessions: RoutineSession[];
+  focusedRoutineId: number | null;
+}
+
 function App() {
-  const [session, setSession] = useState<RoutineSession | null>(null);
+  const [runnerState, setRunnerState] = useState<RunnerState>({ sessions: [], focusedRoutineId: null });
   const [status, setStatus] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
-  const routine = useLiveQuery(
-    async () => {
-      if (!session) {
-        return null;
-      }
-
-      return (await db.routines.get(session.routineId)) ?? null;
-    },
-    [session?.routineId],
-  );
-
-  const currentLink = useMemo(() => {
-    if (!session || !routine) {
+  const focusedSession = useMemo(() => {
+    if (runnerState.sessions.length === 0) {
       return null;
     }
 
-    return routine.links[session.currentIndex] ?? null;
-  }, [routine, session]);
+    if (typeof runnerState.focusedRoutineId === 'number') {
+      const focused = runnerState.sessions.find((session) => session.routineId === runnerState.focusedRoutineId);
+      if (focused) {
+        return focused;
+      }
+    }
+
+    return runnerState.sessions[0] ?? null;
+  }, [runnerState.focusedRoutineId, runnerState.sessions]);
+
+  const routine = useLiveQuery(
+    async () => {
+      if (!focusedSession) {
+        return null;
+      }
+
+      return (await db.routines.get(focusedSession.routineId)) ?? null;
+    },
+    [focusedSession?.routineId],
+  );
+
+  const currentLink = useMemo(() => {
+    if (!focusedSession || !routine) {
+      return null;
+    }
+
+    return routine.links[focusedSession.currentIndex] ?? null;
+  }, [routine, focusedSession]);
 
   useEffect(() => {
-    void getActiveSession().then(setSession);
-    const unsubscribe = subscribeToActiveSession(setSession);
+    void getRunnerState().then(setRunnerState);
+    const unsubscribe = subscribeToRunnerState(setRunnerState);
 
     return unsubscribe;
   }, []);
@@ -72,16 +93,21 @@ function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  });
+  }, [focusedSession?.routineId]);
 
-  const hasActiveSession = Boolean(session && routine);
+  const hasActiveSession = Boolean(focusedSession && routine);
 
   async function onNavigate(offset: number) {
+    if (!focusedSession) {
+      setStatus('No active routine.');
+      return;
+    }
+
     setBusyAction(offset > 0 ? 'next' : 'previous');
     setStatus(null);
 
     try {
-      const updated = await navigateSessionByOffset(offset);
+      const updated = await navigateSessionByOffset(focusedSession.routineId, offset);
       setStatus(updated ? (offset > 0 ? 'Moved next.' : 'Moved previous.') : 'No active routine.');
     } catch {
       setStatus('Unable to navigate right now.');
@@ -91,11 +117,16 @@ function App() {
   }
 
   async function onOpenCurrent() {
+    if (!focusedSession) {
+      setStatus('No active routine.');
+      return;
+    }
+
     setBusyAction('open-current');
     setStatus(null);
 
     try {
-      const updated = await openCurrentSessionLink();
+      const updated = await openCurrentSessionLink(focusedSession.routineId);
       setStatus(updated ? 'Opened current link.' : 'No active routine.');
     } catch {
       setStatus('Unable to open current link.');
@@ -120,17 +151,38 @@ function App() {
   }
 
   async function onStopRoutine() {
+    if (!focusedSession) {
+      setStatus('No active routine.');
+      return;
+    }
+
     setBusyAction('stop');
     setStatus(null);
 
     try {
-      await stopActiveRoutine();
-      setStatus('Routine stopped.');
+      const stopped = await stopActiveRoutine(focusedSession.routineId);
+      setStatus(stopped ? 'Runner stopped.' : 'No active routine.');
     } catch {
       setStatus('Unable to stop routine.');
     } finally {
       setBusyAction(null);
     }
+  }
+
+  async function onFocusNextRunner() {
+    if (runnerState.sessions.length < 2 || !focusedSession) {
+      return;
+    }
+
+    const currentIndex = runnerState.sessions.findIndex((session) => session.routineId === focusedSession.routineId);
+    const nextIndex = currentIndex < 0
+      ? 0
+      : (currentIndex + 1) % runnerState.sessions.length;
+
+    const nextSession = runnerState.sessions[nextIndex];
+
+    await setFocusedRoutine(nextSession.routineId);
+    setStatus('Switched focused runner.');
   }
 
   return (
@@ -140,22 +192,27 @@ function App() {
           <div className="flex items-center justify-between gap-2">
             <div>
               <CardTitle>WebRoutines</CardTitle>
-              <CardDescription>Quick controls + hotkeys</CardDescription>
+              <CardDescription>Focused runner controls + hotkeys</CardDescription>
             </div>
             <ThemeToggle />
           </div>
         </CardHeader>
 
         <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Active runners</p>
+            <Badge variant="secondary">{runnerState.sessions.length}</Badge>
+          </div>
+
           {!hasActiveSession && (
             <p className="text-xs text-muted-foreground">No active routine. Open side panel to start one.</p>
           )}
 
-          {hasActiveSession && session && routine && (
+          {hasActiveSession && focusedSession && routine && (
             <div className="space-y-2">
               <p className="text-sm font-medium">{routine.name}</p>
               <p className="text-xs text-muted-foreground">
-                Step {session.currentIndex + 1} of {routine.links.length}
+                Step {focusedSession.currentIndex + 1} of {routine.links.length}
               </p>
               {currentLink && <p className="break-all text-xs text-muted-foreground">{currentLink.url}</p>}
               <p className="text-xs text-muted-foreground">Alt+Shift+Left/Right to move steps.</p>
@@ -191,7 +248,23 @@ function App() {
         </CardContent>
 
         <CardFooter className="flex-col gap-2">
-          <Button type="button" variant="outline" className="w-full" onClick={() => void onOpenPanel()} disabled={busyAction === 'open-panel'}>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => void onFocusNextRunner()}
+            disabled={runnerState.sessions.length < 2}
+          >
+            Next runner
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => void onOpenPanel()}
+            disabled={busyAction === 'open-panel'}
+          >
             Open side panel
           </Button>
 
