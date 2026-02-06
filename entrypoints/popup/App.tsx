@@ -95,6 +95,18 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [focusedSession?.routineId]);
 
+  useEffect(() => {
+    if (!status) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setStatus(null);
+    }, 3_500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [status]);
+
   const hasActiveSession = Boolean(focusedSession && routine);
 
   async function onNavigate(offset: number) {
@@ -268,7 +280,11 @@ function App() {
             Open side panel
           </Button>
 
-          {status && <p className="w-full text-xs text-muted-foreground">{status}</p>}
+          {status && (
+            <p className="w-full text-xs text-muted-foreground" role="status" aria-live="polite">
+              {status}
+            </p>
+          )}
         </CardFooter>
       </Card>
     </main>

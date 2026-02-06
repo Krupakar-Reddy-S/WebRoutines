@@ -180,6 +180,18 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!message) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setMessage(null);
+    }, 3_500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [message]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (isTextInputTarget(event.target)) {
         return;
@@ -1050,7 +1062,7 @@ function App() {
 
       {error && (
         <Card size="sm" className="border-destructive/30">
-          <CardContent>
+          <CardContent role="alert" aria-live="assertive">
             <p className="text-sm text-destructive">{error}</p>
           </CardContent>
         </Card>
@@ -1058,7 +1070,7 @@ function App() {
 
       {message && (
         <Card size="sm" className="border-primary/30">
-          <CardContent>
+          <CardContent role="status" aria-live="polite">
             <p className="text-sm text-primary">{message}</p>
           </CardContent>
         </Card>
