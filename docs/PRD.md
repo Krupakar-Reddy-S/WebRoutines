@@ -75,7 +75,7 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - [x] Task 3: Build side panel routine CRUD UI (create, list, delete, edit basic links).
 - [x] Task 4: Build routine runner (same tab + tab group launch, prev/next navigation).
 - [x] Task 5: Build popup minimized controls synced to active session.
-- [ ] Task 6: Run build/type validation and polish docs.
+- [x] Task 6: Run build/type validation and polish docs.
 
 ## Progress log
 - 2026-02-06: PRD initialized with MVP scope, architecture choices, and implementation checklist.
@@ -84,3 +84,4 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - 2026-02-06: Task 3 completed with side panel UI for creating, editing, deleting, and listing routines from IndexedDB.
 - 2026-02-06: Task 4 completed with routine runner behavior for same-tab and tab-group modes plus previous/next/jump navigation.
 - 2026-02-06: Task 5 completed with minimized popup controls for previous/next/open-current/stop plus one-click side panel open.
+- 2026-02-06: Task 6 completed with successful `bun run compile` and `bun run build`, plus README setup/build/load instructions.
