@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeftIcon, PlusIcon, SettingsIcon, UploadIcon } from 'lucide-react';
+import { ArrowLeftIcon, HistoryIcon, PlusIcon, SettingsIcon, UploadIcon } from 'lucide-react';
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { RoutineAccordionCard } from '@/components/RoutineAccordionCard';
@@ -37,6 +37,7 @@ interface RunnerState {
 
 interface RoutinesViewProps {
   onOpenSettings: () => void;
+  onOpenHistory: (routineId?: number) => void;
   onOpenRunner: () => void;
   onCreateRoutine: () => void;
   onEditRoutine: (routineId: number) => void;
@@ -46,6 +47,7 @@ interface RoutinesViewProps {
 
 export function RoutinesView({
   onOpenSettings,
+  onOpenHistory,
   onOpenRunner,
   onCreateRoutine,
   onEditRoutine,
@@ -278,6 +280,10 @@ export function RoutinesView({
                 <SettingsIcon />
                 Settings
               </Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => onOpenHistory()}>
+                <HistoryIcon />
+                History
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -340,6 +346,13 @@ export function RoutinesView({
                   }
                 }}
                 onExport={() => void onExportRoutine(routine)}
+                onHistory={() => {
+                  if (typeof routineId === 'number') {
+                    onOpenHistory(routineId);
+                  } else {
+                    onOpenHistory();
+                  }
+                }}
                 onDelete={() => onRequestDeleteRoutine(routine)}
                 onMessage={onMessage}
                 onError={onError}

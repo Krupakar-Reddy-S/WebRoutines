@@ -16,6 +16,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { MessageBanner } from './components/MessageBanner';
 import { RecoveryCard } from './components/RecoveryCard';
 import { EditorView } from './views/EditorView';
+import { HistoryView } from './views/HistoryView';
 import { RunnerHomeView } from './views/RunnerHomeView';
 import { RoutinesView } from './views/RoutinesView';
 import { SettingsView } from './views/SettingsView';
@@ -90,6 +91,15 @@ function SidepanelShell() {
     navigate('/settings');
   }
 
+  function openHistory(routineId?: number) {
+    if (typeof routineId === 'number') {
+      navigate(`/history?routine=${routineId}`);
+      return;
+    }
+
+    navigate('/history');
+  }
+
   function openCreateRoutine() {
     navigate('/routines/new');
   }
@@ -118,6 +128,7 @@ function SidepanelShell() {
             element={(
               <RunnerHomeView
                 onOpenRoutines={openRoutines}
+                onOpenHistory={openHistory}
                 onOpenSettings={openSettings}
                 onMessage={setMessage}
                 onError={setError}
@@ -129,6 +140,7 @@ function SidepanelShell() {
             element={(
               <RoutinesView
                 onOpenSettings={openSettings}
+                onOpenHistory={openHistory}
                 onOpenRunner={openRunner}
                 onCreateRoutine={openCreateRoutine}
                 onEditRoutine={openEditRoutine}
@@ -157,6 +169,15 @@ function SidepanelShell() {
                 onOpenRoutines={openRoutines}
                 onMessage={setMessage}
                 onError={setError}
+              />
+            )}
+          />
+          <Route
+            path="/history"
+            element={(
+              <HistoryView
+                onOpenRunner={openRunner}
+                onOpenSettings={openSettings}
               />
             )}
           />
@@ -210,6 +231,8 @@ function resolveRouteForView(view: string) {
       return '/routines/new';
     case 'settings':
       return '/settings';
+    case 'history':
+      return '/history';
     case 'runner':
     default:
       return '/';

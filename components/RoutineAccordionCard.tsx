@@ -27,6 +27,7 @@ interface RoutineAccordionCardProps {
   onStart: () => void;
   onEdit: () => void;
   onExport: () => void;
+  onHistory: () => void;
   onDelete: () => void;
   onMessage: (message: string | null) => void;
   onError: (message: string | null) => void;
@@ -42,6 +43,7 @@ export function RoutineAccordionCard({
   onStart,
   onEdit,
   onExport,
+  onHistory,
   onDelete,
   onMessage,
   onError,
@@ -208,6 +210,14 @@ export function RoutineAccordionCard({
           )}
 
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onHistory}
+            >
+              History
+            </Button>
             <Button
               type="button"
               size="sm"

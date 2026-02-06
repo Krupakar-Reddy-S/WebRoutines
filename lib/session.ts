@@ -19,7 +19,7 @@ export interface RunnerState {
   focusedRoutineId: number | null;
 }
 
-export type SidepanelViewRequest = 'runner' | 'routines' | 'editor' | 'settings';
+export type SidepanelViewRequest = 'runner' | 'routines' | 'editor' | 'settings' | 'history';
 
 export async function getRunnerState(): Promise<RunnerState> {
   const record = (await browser.storage.session.get([
@@ -394,5 +394,11 @@ async function persistRunnerState(state: RunnerState): Promise<void> {
 }
 
 function isSidepanelViewRequest(value: unknown): value is SidepanelViewRequest {
-  return value === 'runner' || value === 'routines' || value === 'editor' || value === 'settings';
+  return (
+    value === 'runner'
+    || value === 'routines'
+    || value === 'editor'
+    || value === 'settings'
+    || value === 'history'
+  );
 }

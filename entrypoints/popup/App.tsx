@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { SettingsIcon } from 'lucide-react';
+import { HistoryIcon, SettingsIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -244,6 +244,23 @@ function App() {
     }
   }
 
+  async function onOpenHistoryPage() {
+    setStatus(null);
+
+    try {
+      await setRequestedSidepanelView('history');
+      const opened = await openSidePanelForCurrentWindow();
+      if (!opened) {
+        setStatus('Unable to open side panel.');
+        return;
+      }
+      setStatus('Opened history in side panel.');
+      window.close();
+    } catch {
+      setStatus('Unable to open history.');
+    }
+  }
+
   return (
     <main className="w-80 space-y-2 bg-background p-2 text-foreground">
       <Card size="sm">
@@ -327,6 +344,16 @@ function App() {
             disabled={busyAction === 'open-panel'}
           >
             Open side panel
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => void onOpenHistoryPage()}
+          >
+            <HistoryIcon />
+            History
           </Button>
 
           <Button

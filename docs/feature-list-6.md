@@ -1,104 +1,118 @@
-# Feature List 6: UI/UX Overhaul + Tab Loading Simplification
+# Feature List 6: UI/UX Overhaul + History and Stats
 
 ## Goal
-Ship Phase A polish and model simplification: remove dual run-mode complexity, improve routine/editor/settings UX, and standardize sidepanel interactions with shadcn-based components.
+Ship the post-Feature-5 UX upgrade in two phases:
+- Phase A: simplify runtime model and refresh sidepanel UX.
+- Phase B: expose run history and usage stats UI on top of existing run-tracking data.
 
 ## Scope highlights
 Phase A (implemented):
-1. Remove single-tab runner mode and standardize on tab groups.
-2. Add tab loading strategies (`eager` / `lazy`) with settings control.
-3. Redesign routines list as compact accordion cards with favicon previews.
-4. Improve editor workflow for links and tab imports.
-5. Align header/button ordering and placement across sidepanel pages.
-6. Replace routine deletion browser confirm with shadcn dialog.
-7. Ensure shadcn CLI installs into repo-local component paths.
+1. Remove single-tab execution path and standardize sessions to tab groups.
+2. Add tab loading strategies (`eager` and `lazy`) as the replacement for default run mode.
+3. Redesign routines list as compact accordion cards with favicon strip and inline actions.
+4. Refresh editor flow (metadata line, import-from-tabs dialog, improved link workflow).
+5. Standardize header action layout/order and settings controls with shadcn components.
 
-Phase B (next):
-1. History + stats view (`#/history`) on top of Feature List 5 run tracking.
+Phase B (implemented):
+1. Add sidepanel history route (`#/history`) and filtered route (`#/history?routine=<id>`).
+2. Add history navigation entry points in runner/routines/popup surfaces.
+3. Add stats summary cards (total runs, total time, completion rate).
+4. Add routine filter dropdown synced with URL search params.
+5. Add grouped run list (Today, Yesterday, This week, Earlier) with step progress and status badges.
 
-## Out of scope (for this phase)
-- History/stats UI implementation (Phase B).
-- Scheduling/automation features.
-- Cloud sync/cross-device features.
+## Out of scope
+- Scheduling and reminders.
+- Cloud sync/cross-device data.
+- Advanced analytics beyond core run stats.
 
-## Checklist
-Phase A:
-- [x] Remove `same-tab` runtime path from runner/session flows.
-- [x] Add `tabLoadMode` settings model (`eager` / `lazy`) and defaults.
-- [x] Implement lazy placeholder tab mapping (`tabIds: (number | null)[]`) with safe normalization.
-- [x] Update background tab lifecycle handling for lazy mode mapping.
-- [x] Remove start-mode picker in routines; start directly from settings mode.
-- [x] Rework routines UI to accordion card model with inline link actions.
-- [x] Add favicon utilities and shared favicon components.
-- [x] Add editor import-from-tabs dialog and metadata improvements.
-- [x] Update settings UIs (sidepanel/options) to tab loading radio controls via shadcn components.
-- [x] Align header actions below subtitle and keep navigation-first ordering.
-- [x] Replace routine delete `window.confirm` with shadcn dialog in routines view.
+## Phase A checklist
+- [x] Remove `same-tab` runtime path from navigation/session model.
+- [x] Add `tabLoadMode` setting (`eager`/`lazy`) and defaults.
+- [x] Support lazy placeholder mapping with `tabIds: (number | null)[]`.
+- [x] Update tab lifecycle handling for lazy-mode mapping stability.
+- [x] Remove mode picker from routine start flow.
+- [x] Rebuild routines view around accordion cards and favicon previews.
+- [x] Add `ImportFromTabsDialog` and favicon helpers in editor/routines surfaces.
+- [x] Migrate settings UIs to shadcn radio/switch/select controls.
+- [x] Apply consistent sidepanel header action layout and ordering.
+- [x] Replace routine delete browser confirm with shadcn dialog in routines view.
 - [x] Validate with `bun run compile` and `bun run build`.
 
-Phase B:
-- [ ] Add history route/view.
-- [ ] Add stats cards and routine filter.
-- [ ] Add run list groups and status chips.
+## Phase B details
 
-## Implementation notes (Phase A)
-- `RoutineSession` now uses tab-group only with per-session `loadMode`.
-- New runs still write `mode: 'tab-group'` for history compatibility.
-- Routines card behavior:
-  - Run button in card header.
-  - Favicon strip shows first 5 and `+X more`.
-  - Fallback favicon is a globe emoji (`🌐`) badge.
-  - `Edit` is on the same row as favicon strip to keep cards compact.
-- Editor behavior:
-  - Add-link input first, then `Add` + `Import from tabs` in one row, then helper text.
-  - Editor delete action removed (routine deletion handled from routines list).
-- Deletion behavior:
-  - Routine delete now uses a shadcn `Dialog` confirmation.
-- Header consistency:
-  - Action buttons appear below description text.
-  - Back/manage navigation action appears before settings action.
-- shadcn CLI path resolution:
-  - `tsconfig.json` overrides local aliases so `bunx --bun shadcn@latest add ...` installs in repo, not parent directory.
+### B1. Route and navigation
+- Added route: `#/history`.
+- Added filtered route support via query param: `#/history?routine=<id>`.
+- Added sidepanel navigation entry points:
+  - Runner Home header: `History` button.
+  - Routines header: `History` button.
+  - Routines accordion card action: per-routine `History` button (opens filtered history).
+- Added popup quick-open for history by setting `requestedSidepanelView = 'history'` and opening sidepanel.
 
-## Files touched (high level)
-- Runner/session/settings/history model:
-  - `lib/types.ts`
-  - `lib/settings.ts`
-  - `lib/session.ts`
-  - `lib/navigation.ts`
-  - `lib/run-history.ts`
-  - `entrypoints/background.ts`
-- Sidepanel views/components:
-  - `entrypoints/sidepanel/views/RunnerHomeView.tsx`
-  - `entrypoints/sidepanel/views/RoutinesView.tsx`
-  - `entrypoints/sidepanel/views/EditorView.tsx`
-  - `entrypoints/sidepanel/views/SettingsView.tsx`
-  - `entrypoints/sidepanel/components/StepList.tsx`
-  - `entrypoints/sidepanel/components/ActiveRunnerCard.tsx`
-- New shared components/helpers:
-  - `components/RoutineAccordionCard.tsx`
-  - `components/ImportFromTabsDialog.tsx`
-  - `components/FaviconStrip.tsx`
-  - `components/FaviconImage.tsx`
-  - `components/ui/accordion.tsx`
-  - `components/ui/checkbox.tsx`
-  - `components/ui/dialog.tsx`
-  - `components/ui/dropdown-menu.tsx`
-  - `components/ui/radio-group.tsx`
-  - `components/ui/select.tsx`
-  - `components/ui/switch.tsx`
-  - `lib/url.ts`
-- Settings/options + config:
-  - `entrypoints/options/App.tsx`
-  - `tsconfig.json`
-  - `wxt.config.ts`
+### B2. History data model usage
+History UI reads from Feature List 5 tables:
+- `runs`
+- `runEvents` (already used indirectly by stored run fields)
+
+Primary query behavior in history view:
+1. Load runs ordered by `startedAt` descending.
+2. Apply optional routine filter from URL query param.
+3. Resolve routine names via `routines.bulkGet()`.
+4. Render rows with graceful fallback labels when routine records are missing.
+
+### B3. Stats summary cards
+History summary cards compute from the currently filtered run set:
+- `Total runs`: count of matching runs.
+- `Total time`: sum of resolved run durations.
+- `Completion rate`: percentage of runs where `completedFull === true`.
+
+Duration resolution logic:
+- Prefer stored `durationMs`.
+- Fallback to `stoppedAt - startedAt`.
+- For active runs (`stoppedAt === null`), use `now - startedAt`.
+
+### B4. Routine filter behavior
+- Filter UI uses shadcn `Select`.
+- Options include `All routines` + routines that have at least one run.
+- Selected filter value syncs to URL search params.
+- Deep-linking works (opening `#/history?routine=<id>` pre-filters results).
+
+### B5. Run list and grouping
+History rows are grouped by started date bucket:
+- `Today`
+- `Yesterday`
+- `This week`
+- `Earlier`
+
+Each run card shows:
+- Routine name (clicking sets routine filter).
+- Start time of day.
+- Step progress dots with truncation for long routines.
+- `stepsCompleted/totalSteps`.
+- Duration label or `In progress`.
+- Completion badge (`Complete`, `Partial`, or `In progress`).
+- Optional stop-reason line for non-user stop reasons.
+
+### B6. Phase B checklist
+- [x] Add `/history` sidepanel route and view.
+- [x] Add routine filter with URL sync.
+- [x] Add grouped run list with progress/status.
+- [x] Add summary stats cards.
+- [x] Add navigation entry points to history (runner/routines/popup).
+- [x] Validate with `bun run compile` and `bun run build`.
+
+## Files touched (Phase B)
+- `entrypoints/sidepanel/views/HistoryView.tsx`
+- `entrypoints/sidepanel/App.tsx`
+- `entrypoints/sidepanel/views/RunnerHomeView.tsx`
+- `entrypoints/sidepanel/views/RoutinesView.tsx`
+- `components/RoutineAccordionCard.tsx`
+- `entrypoints/popup/App.tsx`
+- `lib/session.ts`
 
 ## Step log
-- 2026-02-06: Phase A implementation started from plan in `docs/extra/FEATURE_LIST_6_PLAN.md`.
-- 2026-02-06: Removed single-tab execution path and switched runtime to tab-group model.
-- 2026-02-06: Added eager/lazy tab-loading mode with settings and lazy placeholder tab mapping.
-- 2026-02-06: Rebuilt routines and editor UIs with new accordion/import/favicons flow.
-- 2026-02-06: Standardized settings controls to shadcn components.
-- 2026-02-06: Fixed shadcn CLI target path by overriding local aliases in `tsconfig.json`.
-- 2026-02-06: Applied UX refinements from review (compact cards, header ordering, dialog-based delete).
-- 2026-02-06: Revalidated with successful `bun run compile` and `bun run build`.
+- 2026-02-06: Implemented Phase A model simplification and sidepanel UX overhaul.
+- 2026-02-06: Added history route and core stats/list UI for Phase B.
+- 2026-02-06: Wired filter query-param behavior and per-routine history deep-linking.
+- 2026-02-06: Added popup history entry point via requested sidepanel view.
+- 2026-02-06: Revalidated Feature 6 with successful compile/build.

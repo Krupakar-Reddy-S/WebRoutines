@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { SettingsIcon } from 'lucide-react';
+import { HistoryIcon, SettingsIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ interface RunnerState {
 
 interface RunnerHomeViewProps {
   onOpenRoutines: () => void;
+  onOpenHistory: () => void;
   onOpenSettings: () => void;
   onMessage: (message: string | null) => void;
   onError: (message: string | null) => void;
@@ -46,6 +47,7 @@ interface RunnerHomeViewProps {
 
 export function RunnerHomeView({
   onOpenRoutines,
+  onOpenHistory,
   onOpenSettings,
   onMessage,
   onError,
@@ -284,6 +286,10 @@ export function RunnerHomeView({
               <Button type="button" size="sm" variant="outline" onClick={onOpenSettings}>
                 <SettingsIcon />
                 Settings
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={onOpenHistory}>
+                <HistoryIcon />
+                History
               </Button>
             </div>
           </div>

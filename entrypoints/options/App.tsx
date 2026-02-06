@@ -80,7 +80,7 @@ function App() {
             }}
           >
             <SelectTrigger id="options-theme-select" className="w-full">
-              <SelectValue placeholder="Select theme" />
+              <SelectValue>{getThemeLabel(settings.staticTheme)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="system">System</SelectItem>
@@ -156,6 +156,18 @@ function App() {
       </Card>
     </main>
   );
+}
+
+function getThemeLabel(value: 'light' | 'dark' | 'system'): string {
+  if (value === 'light') {
+    return 'Light';
+  }
+
+  if (value === 'dark') {
+    return 'Dark';
+  }
+
+  return 'System';
 }
 
 export default App;

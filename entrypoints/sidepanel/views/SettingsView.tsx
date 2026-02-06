@@ -87,7 +87,7 @@ export function SettingsView({ onOpenRunner }: SettingsViewProps) {
             }}
           >
             <SelectTrigger id="theme-select" className="w-full">
-              <SelectValue placeholder="Select theme" />
+              <SelectValue>{getThemeLabel(settings.staticTheme)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="system">System</SelectItem>
@@ -163,4 +163,16 @@ export function SettingsView({ onOpenRunner }: SettingsViewProps) {
       </Card>
     </>
   );
+}
+
+function getThemeLabel(value: 'light' | 'dark' | 'system'): string {
+  if (value === 'light') {
+    return 'Light';
+  }
+
+  if (value === 'dark') {
+    return 'Dark';
+  }
+
+  return 'System';
 }
