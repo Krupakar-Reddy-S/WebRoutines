@@ -5,6 +5,7 @@ WebRoutines is a Chrome MV3 side panel extension for running daily website routi
 ## Stack
 - WXT + React + TypeScript
 - Bun package manager/runtime
+- shadcn/ui (base-nova preset) + Tailwind v4
 - Dexie + IndexedDB for routine persistence
 - `browser.storage.session` for active routine runner state
 
@@ -30,6 +31,10 @@ Build output is generated in `.output/chrome-mv3`.
 
 ## Current MVP features
 - Create, edit, delete routines with ordered links.
+- Drag-and-drop reorder links directly in the routine editor.
 - Run routines in same-tab mode or tab-group mode.
 - Navigate routine steps from side panel (previous, next, jump, open current, stop).
 - Control active routine from popup when side panel is minimized.
+- Import/export routine backups as JSON.
+- Keyboard shortcuts for navigation: `Alt+Shift+Left` and `Alt+Shift+Right`.
+- Light/dark theme toggle in side panel and popup.

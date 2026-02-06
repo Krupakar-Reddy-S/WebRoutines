@@ -53,6 +53,27 @@ function App() {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isTextInputTarget(event.target)) {
+        return;
+      }
+
+      if (event.altKey && event.shiftKey && event.key === 'ArrowLeft') {
+        event.preventDefault();
+        void onNavigate(-1);
+      }
+
+      if (event.altKey && event.shiftKey && event.key === 'ArrowRight') {
+        event.preventDefault();
+        void onNavigate(1);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
+
   const hasActiveSession = Boolean(session && routine);
 
   async function onNavigate(offset: number) {
@@ -119,7 +140,7 @@ function App() {
           <div className="flex items-center justify-between gap-2">
             <div>
               <CardTitle>WebRoutines</CardTitle>
-              <CardDescription>Quick controls</CardDescription>
+              <CardDescription>Quick controls + hotkeys</CardDescription>
             </div>
             <ThemeToggle />
           </div>
@@ -137,6 +158,7 @@ function App() {
                 Step {session.currentIndex + 1} of {routine.links.length}
               </p>
               {currentLink && <p className="break-all text-xs text-muted-foreground">{currentLink.url}</p>}
+              <p className="text-xs text-muted-foreground">Alt+Shift+Left/Right to move steps.</p>
               <Separator />
               <div className="grid grid-cols-2 gap-2">
                 <Button type="button" size="sm" onClick={() => void onNavigate(-1)} disabled={busyAction === 'previous'}>
@@ -177,6 +199,21 @@ function App() {
         </CardFooter>
       </Card>
     </main>
+  );
+}
+
+function isTextInputTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+
+  return (
+    tagName === 'input'
+    || tagName === 'textarea'
+    || target.isContentEditable
+    || target.closest('[contenteditable="true"]') !== null
   );
 }
 

@@ -1,5 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { DownloadIcon, GripVerticalIcon, PlusIcon, UploadIcon, XIcon } from 'lucide-react';
+import {
+  type ChangeEvent,
+  type DragEvent,
+  type FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +24,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
 import { db } from '@/lib/db';
 import {
   navigateSessionByOffset,
@@ -26,26 +34,33 @@ import {
 } from '@/lib/navigation';
 import {
   createRoutine,
+  createRoutineBackupPayload,
+  createRoutineLink,
   deleteRoutine,
-  linksToEditorText,
   listRoutines,
-  parseLinksFromText,
+  normalizeRoutineUrl,
+  parseRoutineBackup,
   updateRoutine,
 } from '@/lib/routines';
 import { getActiveSession, subscribeToActiveSession } from '@/lib/session';
-import type { NavigationMode, Routine, RoutineSession } from '@/lib/types';
+import type { NavigationMode, Routine, RoutineLink, RoutineSession } from '@/lib/types';
 
 function App() {
   const routines = useLiveQuery(() => listRoutines(), []);
   const [session, setSession] = useState<RoutineSession | null>(null);
 
   const [name, setName] = useState('');
-  const [linksInput, setLinksInput] = useState('');
+  const [newLinkInput, setNewLinkInput] = useState('');
+  const [draftLinks, setDraftLinks] = useState<RoutineLink[]>([]);
   const [editingRoutineId, setEditingRoutineId] = useState<number | null>(null);
+
+  const [draggingLinkId, setDraggingLinkId] = useState<string | null>(null);
 
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeRoutine = useLiveQuery(
     async () => {
@@ -79,6 +94,27 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isTextInputTarget(event.target)) {
+        return;
+      }
+
+      if (event.altKey && event.shiftKey && event.key === 'ArrowLeft') {
+        event.preventDefault();
+        void onNavigateOffset(-1);
+      }
+
+      if (event.altKey && event.shiftKey && event.key === 'ArrowRight') {
+        event.preventDefault();
+        void onNavigateOffset(1);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
+
   async function onSaveRoutine(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -90,8 +126,7 @@ function App() {
       return;
     }
 
-    const links = parseLinksFromText(linksInput);
-    if (links.length === 0) {
+    if (draftLinks.length === 0) {
       setError('Add at least one valid http/https link.');
       return;
     }
@@ -100,10 +135,10 @@ function App() {
 
     try {
       if (editingRoutineId) {
-        await updateRoutine(editingRoutineId, { name: trimmedName, links });
+        await updateRoutine(editingRoutineId, { name: trimmedName, links: draftLinks });
         setMessage('Routine updated.');
       } else {
-        await createRoutine({ name: trimmedName, links });
+        await createRoutine({ name: trimmedName, links: draftLinks });
         setMessage('Routine created.');
       }
 
@@ -113,6 +148,62 @@ function App() {
     } finally {
       setBusyAction(null);
     }
+  }
+
+  function onAddDraftLink() {
+    setError(null);
+    setMessage(null);
+
+    const normalizedUrl = normalizeRoutineUrl(newLinkInput);
+
+    if (!normalizedUrl) {
+      setError('Enter a valid http/https URL to add link.');
+      return;
+    }
+
+    if (draftLinks.some((link) => link.url === normalizedUrl)) {
+      setError('This link already exists in the routine.');
+      return;
+    }
+
+    setDraftLinks((previous) => [...previous, createRoutineLink(normalizedUrl)]);
+    setNewLinkInput('');
+  }
+
+  function onRemoveDraftLink(linkId: string) {
+    setDraftLinks((previous) => previous.filter((link) => link.id !== linkId));
+  }
+
+  function onDragStartLink(event: DragEvent<HTMLDivElement>, linkId: string) {
+    setDraggingLinkId(linkId);
+    event.dataTransfer.effectAllowed = 'move';
+  }
+
+  function onDragOverLink(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  function onDropLink(event: DragEvent<HTMLDivElement>, targetLinkId: string) {
+    event.preventDefault();
+
+    if (!draggingLinkId || draggingLinkId === targetLinkId) {
+      return;
+    }
+
+    setDraftLinks((previous) => {
+      const fromIndex = previous.findIndex((link) => link.id === draggingLinkId);
+      const toIndex = previous.findIndex((link) => link.id === targetLinkId);
+
+      if (fromIndex < 0 || toIndex < 0) {
+        return previous;
+      }
+
+      const next = [...previous];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
   }
 
   async function onDeleteRoutine(routine: Routine) {
@@ -150,8 +241,9 @@ function App() {
 
   function onEditRoutine(routine: Routine) {
     setName(routine.name);
-    setLinksInput(linksToEditorText(routine.links));
+    setDraftLinks(routine.links.map((link) => ({ ...link })));
     setEditingRoutineId(routine.id ?? null);
+    setNewLinkInput('');
     setError(null);
     setMessage(null);
   }
@@ -245,16 +337,92 @@ function App() {
     }
   }
 
+  async function onExportBackup() {
+    setBusyAction('export-backup');
+    setError(null);
+    setMessage(null);
+
+    try {
+      const allRoutines = await listRoutines();
+
+      if (allRoutines.length === 0) {
+        setError('No routines available to export.');
+        return;
+      }
+
+      const payload = createRoutineBackupPayload(allRoutines);
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+      anchor.href = url;
+      anchor.download = `webroutines-backup-${timestamp}.json`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+
+      setMessage(`Exported ${allRoutines.length} routine${allRoutines.length === 1 ? '' : 's'}.`);
+    } catch (exportError) {
+      setError(toErrorMessage(exportError, 'Failed to export routines.'));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  function triggerImportDialog() {
+    importInputRef.current?.click();
+  }
+
+  async function onImportFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    setBusyAction('import-backup');
+    setError(null);
+    setMessage(null);
+
+    try {
+      const rawText = await file.text();
+      const routinesToImport = parseRoutineBackup(rawText);
+
+      for (const routineInput of routinesToImport) {
+        await createRoutine(routineInput);
+      }
+
+      setMessage(`Imported ${routinesToImport.length} routine${routinesToImport.length === 1 ? '' : 's'}.`);
+    } catch (importError) {
+      setError(toErrorMessage(importError, 'Failed to import backup JSON.'));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   function resetForm() {
     setName('');
-    setLinksInput('');
+    setNewLinkInput('');
+    setDraftLinks([]);
     setEditingRoutineId(null);
+    setDraggingLinkId(null);
   }
 
   const hasActiveSession = Boolean(session && activeRoutine);
 
   return (
     <main className="min-h-screen space-y-4 bg-background p-3 text-foreground">
+      <input
+        ref={importInputRef}
+        type="file"
+        accept="application/json"
+        className="hidden"
+        onChange={onImportFileChange}
+      />
+
       <Card size="sm">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
@@ -270,7 +438,7 @@ function App() {
       <Card>
         <CardHeader>
           <CardTitle>{editingRoutineId ? 'Edit Routine' : 'New Routine'}</CardTitle>
-          <CardDescription>Enter one valid URL per line.</CardDescription>
+          <CardDescription>Add links and drag to reorder sequence.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-3" onSubmit={onSaveRoutine}>
@@ -286,14 +454,49 @@ function App() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="routine-links">Links</Label>
-              <Textarea
-                id="routine-links"
-                value={linksInput}
-                onChange={(event) => setLinksInput(event.target.value)}
-                placeholder="https://example.com/blog\nhttps://news.ycombinator.com"
-                rows={7}
-              />
+              <Label htmlFor="routine-link">Add link</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="routine-link"
+                  value={newLinkInput}
+                  onChange={(event) => setNewLinkInput(event.target.value)}
+                  placeholder="https://example.com/blog"
+                />
+                <Button type="button" variant="outline" onClick={onAddDraftLink}>
+                  <PlusIcon />
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {draftLinks.length === 0 && (
+                <p className="text-xs text-muted-foreground">No links yet. Add your first link above.</p>
+              )}
+              {draftLinks.map((link, index) => (
+                <div
+                  key={link.id}
+                  draggable
+                  onDragStart={(event) => onDragStartLink(event, link.id)}
+                  onDragOver={onDragOverLink}
+                  onDrop={(event) => onDropLink(event, link.id)}
+                  onDragEnd={() => setDraggingLinkId(null)}
+                  className="flex items-center gap-2 rounded-lg border border-border/70 bg-card px-2 py-1.5"
+                >
+                  <GripVerticalIcon className="size-4 text-muted-foreground" />
+                  <Badge variant="secondary">{index + 1}</Badge>
+                  <p className="flex-1 break-all text-xs text-muted-foreground">{link.url}</p>
+                  <Button
+                    type="button"
+                    size="icon-xs"
+                    variant="outline"
+                    onClick={() => onRemoveDraftLink(link.id)}
+                    aria-label="Remove link"
+                  >
+                    <XIcon />
+                  </Button>
+                </div>
+              ))}
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -319,9 +522,32 @@ function App() {
       <Card>
         <CardHeader>
           <CardTitle>Routines</CardTitle>
-          <CardDescription>Start a routine in same-tab or tab-group mode.</CardDescription>
+          <CardDescription>Run routines and import/export backups.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void onExportBackup()}
+              disabled={busyAction === 'export-backup'}
+            >
+              <DownloadIcon />
+              Export JSON
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={triggerImportDialog}
+              disabled={busyAction === 'import-backup'}
+            >
+              <UploadIcon />
+              Import JSON
+            </Button>
+          </div>
+
           {routines === undefined && <p className="text-sm text-muted-foreground">Loading routines...</p>}
           {routines?.length === 0 && <p className="text-sm text-muted-foreground">No routines yet. Create one above.</p>}
 
@@ -387,7 +613,7 @@ function App() {
       <Card>
         <CardHeader>
           <CardTitle>Runner</CardTitle>
-          <CardDescription>Use controls here or from popup quick controls.</CardDescription>
+          <CardDescription>Hotkeys: Alt+Shift+Left (prev), Alt+Shift+Right (next).</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {!hasActiveSession && (
@@ -476,6 +702,21 @@ function toErrorMessage(value: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function isTextInputTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+
+  return (
+    tagName === 'input'
+    || tagName === 'textarea'
+    || target.isContentEditable
+    || target.closest('[contenteditable="true"]') !== null
+  );
 }
 
 export default App;

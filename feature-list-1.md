@@ -25,16 +25,17 @@ Adopt the latest shadcn/ui-style modular component setup in this WXT extension w
 - [x] Install and configure Tailwind v4 + shadcn base setup for WXT.
 - [x] Add modular shadcn UI components and migrate sidepanel/popup UI to use them.
 - [x] Add basic light/dark mode toggle and persistence.
-- [ ] Add drag-and-drop link reordering in routine editor.
-- [ ] Add import/export JSON backup for routines.
-- [ ] Add keyboard shortcuts for previous/next routine step.
-- [ ] Validate with compile/build and update docs.
+- [x] Add drag-and-drop link reordering in routine editor.
+- [x] Add import/export JSON backup for routines.
+- [x] Add keyboard shortcuts for previous/next routine step.
+- [x] Validate with compile/build and update docs.
 
 ## Config and integration notes
 - `components.json` is configured with style `base-nova`, neutral base color, and CSS path `entrypoints/shared/styles.css`.
 - WXT config now injects Tailwind via `@tailwindcss/vite` plugin for all extension entrypoints.
 - Shared theme tokens and base layer are centralized in `entrypoints/shared/styles.css` and imported by sidepanel + popup main entry files.
 - `ThemeProvider` applies `light`/`dark` class on `document.documentElement` and persists to localStorage key `webroutines-theme`.
+- Backup format is JSON with root shape `{ version, exportedAt, routines[] }`, while parser also accepts plain routine arrays for resilience.
 
 ## Step log
 - 2026-02-06: Created `feature-list-1.md` and recorded initial references, decisions, and checklist.
@@ -42,3 +43,7 @@ Adopt the latest shadcn/ui-style modular component setup in this WXT extension w
 - 2026-02-06: Added shadcn dependencies, Tailwind v4/WXT integration, and shadcn registry config (`components.json`).
 - 2026-02-06: Ran `shadcn add` for foundational UI components and migrated sidepanel/popup UI to modular shadcn components.
 - 2026-02-06: Added basic light/dark theme toggle and persistence for extension pages.
+- 2026-02-06: Added drag-and-drop reordering for routine editor links with handle + reindexing behavior.
+- 2026-02-06: Added routine JSON export/import backup flow with tolerant parsing and validation.
+- 2026-02-06: Added runner keyboard shortcuts (`Alt+Shift+Left/Right`) in sidepanel and popup contexts.
+- 2026-02-06: Verified all changes with `bun run compile` and `bun run build`.
