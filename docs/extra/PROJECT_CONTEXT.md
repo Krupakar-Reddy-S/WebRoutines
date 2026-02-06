@@ -1,68 +1,115 @@
-# WebRoutines Project Context (Full Technical Brief)
+# WebRoutines Project Context (Post Feature List 3 + 4)
 
 ## Why this document exists
-This file is a self-contained technical brief for WebRoutines.
-Use it with any regular chat assistant to discuss new ideas, UX changes, architecture options, and roadmap planning without needing to share the full codebase.
+This is a current technical brief for WebRoutines after Feature List 3 and Feature List 4 implementation, so product/planning discussions can happen without re-reading the full repo each time.
 
-## 1) Product snapshot
-WebRoutines is a Chrome MV3 extension that helps users run ordered website routines.
+## 1) Current delivery state
+Last major implementation commit:
+- `87a51f7` (`2026-02-06`) - finalizes Feature List 4 settings + focus controller changes
 
-Core concept:
-- A user defines routines (named lists of URLs).
-- A user can run each routine in a tab-group-backed runner.
-- Multiple routines can run at the same time.
-- There is only one active runner per routine.
+Recent milestone commits:
+- `b534b02` - Feature 3 chores (per-routine export + streamlined link input UX)
+- `dc91639` - Feature 3 docs/validation completion
+- `bcbfe18` - Feature 4 planning docs and adaptive theming notes
 
-Current UX split:
-- Sidepanel default view: Runner Home (active runner control).
-- Sidepanel management view: Routines list + start/edit/delete/import/export.
-- Sidepanel editor view: dedicated create/edit workflow.
-- Popup: quick controls for the currently focused runner.
+Validation status:
+- `bun run compile` passes
+- `bun run build` passes
 
-## 2) Tech stack and runtime
-- Framework/tooling: WXT + React + TypeScript.
-- Styling/UI: Tailwind v4 + shadcn/ui (base-nova style).
-- Persistent data: Dexie over IndexedDB.
-- Ephemeral runtime state: `browser.storage.session`.
-- Browser target: Chrome MV3.
+## 2) Product snapshot
+WebRoutines is a Chrome MV3 extension for running ordered website routines.
 
-Build/dev commands:
+Core behavior:
+- Users create routines (named URL lists).
+- One active runner per routine.
+- Multiple routines can run at once.
+- Runner supports `same-tab` and `tab-group` modes.
+
+Primary surfaces:
+- Sidepanel app (`runner`, `routines`, `editor`, `settings` views).
+- Popup quick controls for active/focused runner.
+- Options page (same settings model, open from Chrome extensions page).
+- Focus mini-controller (content script pill on web pages when focus mode is active).
+
+## 3) What changed in Feature List 3
+Feature 3 focused on low-complexity UX polish without architecture rewrites.
+
+Delivered:
+- Runner Home progress indicators and elapsed runtime display.
+- Better empty states with direct start/manage actions.
+- Routine search and compact/expand link previews.
+- Quick focus action for already-running routines.
+- Editor improvements:
+  - Single link input accepts one URL, comma-separated URLs, or one-per-line paste.
+  - Add button shows parsed URL count when multiple are detected.
+  - Duplicate URLs are skipped with user feedback.
+  - Inline, in-sidebar confirmation UI before removing a draft link.
+- Import/export split:
+  - Import remains global.
+  - Export is per-routine.
+- Accessibility/status polish for sidepanel + popup.
+
+## 4) What changed in Feature List 4
+Feature 4 added settings + focus-mode controller + reliability hardening.
+
+Delivered:
+- Typed shared settings model in `chrome.storage.local`:
+  - `staticTheme`: `system | light | dark`
+  - `defaultRunMode`: `same-tab | tab-group`
+  - `confirmBeforeStop`: boolean
+  - `focusModeEnabled`: boolean
+- Options page entrypoint (`entrypoints/options/*`) using same settings model/hook.
+- Sidepanel in-app settings view and popup settings open flow into sidepanel settings.
+- Focus mini-controller content script:
+  - Previous/Next controls
+  - Return to sidebar action
+  - Vertical drag with persisted Y offset
+- Background message bridge for controller actions/state sync.
+- Theme split (finalized after iteration):
+  - Sidebar/popup/options use static extension theme (`system/light/dark`).
+  - Mini-controller uses page-adaptive accent styling only.
+- Stability hardening:
+  - Safe fallbacks when content-script storage access is restricted.
+  - Sidebar-open fallback path in controller flow.
+
+## 5) Tech stack and runtime
+- WXT + React + TypeScript
+- Tailwind v4 + shadcn/ui
+- Dexie/IndexedDB for routines data
+- `browser.storage.session` for runner/focus ephemeral state
+- `browser.storage.local` for app settings and controller accent cache
+
+Commands:
 - `bun install`
 - `bun run dev`
 - `bun run compile`
 - `bun run build`
 
-Relevant config files:
-- `package.json`
-- `wxt.config.ts`
-- `components.json`
-
-## 3) High-level architecture
-### Extension entrypoints
+## 6) Extension architecture (current)
+Entrypoints:
 - `entrypoints/background.ts`
-  - Configures sidepanel behavior on action click.
-  - Listens to tab-group removal and clears matching runner sessions.
-- `entrypoints/sidepanel/*`
-  - Main application UI for runner control and routine management.
-- `entrypoints/popup/*`
-  - Compact quick-control UI for focused runner.
+  - Sidepanel behavior setup
+  - Tab-group cleanup listener
+  - Focus controller runtime message bridge
+- `entrypoints/sidepanel/App.tsx`
+  - Main app UI and internal view switching
+- `entrypoints/popup/App.tsx`
+  - Quick controls + open sidepanel/settings
+- `entrypoints/options/App.tsx`
+  - Dedicated options UI wired to shared settings
+- `entrypoints/focus-controller.content.ts`
+  - Focus mini-controller UI injected on `<all_urls>`
 
-### Core library modules
-- `lib/types.ts`: shared domain types.
-- `lib/db.ts`: Dexie schema and DB instance.
-- `lib/routines.ts`: routine CRUD utilities, URL normalization, backup import/export parsing.
-- `lib/session.ts`: multi-runner session state management and subscriptions.
-- `lib/navigation.ts`: start/stop/navigate runner behavior and tab/tab-group orchestration.
+Core libs:
+- `lib/routines.ts` - routine CRUD, URL normalization, import/export parsing
+- `lib/navigation.ts` - start/stop/navigate + sidepanel open helpers
+- `lib/session.ts` - active sessions, focused runner, focus mode, sidepanel view requests
+- `lib/settings.ts` - settings schema/defaults/read-write-subscribe
+- `lib/use-settings.ts` - React hook for synced settings state
+- `lib/adaptive-accent.ts` - adaptive accent extraction/cache utilities used by controller
 
-### Theme and design system
-- `components/theme-provider.tsx`: light/dark persistence and class toggling.
-- `components/theme-toggle.tsx`: UI toggle control.
-- `entrypoints/shared/styles.css`: design tokens and shared styling foundation.
-
-## 4) Data model and schemas
-### 4.1 Routine (IndexedDB)
-Defined in `lib/types.ts`, persisted via Dexie in `lib/db.ts`.
-
+## 7) Data model summary
+### IndexedDB (`routines`)
 ```ts
 interface Routine {
   id?: number;
@@ -73,14 +120,7 @@ interface Routine {
 }
 ```
 
-Dexie store definition:
-- DB name: `WebRoutinesDB`
-- Table: `routines`
-- Indexes: `++id,name,createdAt,updatedAt`
-
-### 4.2 Runner session (session storage)
-Defined in `lib/types.ts`.
-
+### Session storage (`browser.storage.session`)
 ```ts
 interface RoutineSession {
   routineId: number;
@@ -93,263 +133,88 @@ interface RoutineSession {
 }
 ```
 
-Session storage keys managed by `lib/session.ts`:
-- `activeSessions`: `RoutineSession[]`
-- `focusedRoutineId`: `number | null`
-- Legacy migration key: `activeSession` (read and migrated, then removed)
+Session keys:
+- `activeSessions`
+- `focusedRoutineId`
+- `focusModeActive`
+- `requestedSidepanelView`
+- legacy migration key: `activeSession`
 
-State rules:
-- Multiple sessions can exist simultaneously.
-- At most one session per `routineId`.
-- `focusedRoutineId` points to the session controlled by sidepanel runner actions and popup actions.
-- If focus becomes invalid, first session is used as fallback.
-
-### 4.3 Backup JSON schema
-Export payload generated by `createRoutineBackupPayload` in `lib/routines.ts`:
-
-```json
-{
-  "version": 1,
-  "exportedAt": "2026-02-06T...Z",
-  "routines": [
-    {
-      "name": "Routine name",
-      "links": [
-        { "url": "https://...", "title": "Optional" }
-      ]
-    }
-  ]
+### Local settings (`browser.storage.local`)
+```ts
+interface AppSettings {
+  staticTheme: 'light' | 'dark' | 'system';
+  defaultRunMode: 'same-tab' | 'tab-group';
+  confirmBeforeStop: boolean;
+  focusModeEnabled: boolean;
 }
 ```
 
-Import parser behavior:
-- Accepts both root object with `routines[]` and direct routine array.
-- Validates URLs to `http`/`https`.
-- Trims names, deduplicates links by URL per routine.
-- Skips invalid routines/links and throws if nothing valid remains.
-
-## 5) Current UI structure and behavior
-## 5.1 Sidepanel (`entrypoints/sidepanel/App.tsx`)
-Single React component with internal view switching:
-- `runner` view (default)
-- `routines` view
-- `editor` view
-
-### Runner Home view
-Main cards:
-1. Header card
-- Title and description.
-- Button: `Manage routines` -> switches to routines view.
-- Theme toggle.
-
-2. Active Runners card
-- Lists currently active routine sessions.
-- Shows routine name, mode label, focus badge.
-- Actions per runner:
-  - `Focus`
-  - `Stop`
-
-3. Focused Runner card
-- Displays focused routine name and current step.
-- Controls:
-  - Previous/Next
-  - Open current
-  - Stop
-  - Jump-to-step buttons for each routine link
-- Keyboard shortcuts:
-  - `Alt+Shift+Left` -> previous
-  - `Alt+Shift+Right` -> next
-
-### Routines view
-Main cards:
-1. Header card
-- Back button to Runner Home.
-- Theme toggle.
-
-2. Actions card
-- `New routine`
-- `Export JSON`
-- `Import JSON`
-
-3. All routines card
-- Lists routines and links.
-- Shows `Running` badge if routine already has an active runner.
-- Actions:
-  - `Run single-tab`
-  - `Run multi-tab`
-  - `Edit`
-  - `Delete`
-
-### Editor view
-Main cards:
-1. Header card
-- Back button to Routines.
-- Theme toggle.
-
-2. Form card
-- Routine name input.
-- Add-link input.
-- Draft link list with drag-and-drop reorder.
-- Link remove action.
-- Save and cancel actions.
-
-Shared UX behaviors:
-- Busy-action disabling to avoid repeated operations.
-- Error and success messages shown as cards at bottom.
-- `navigator.storage.persist()` is requested to reduce storage eviction risk.
-
-## 5.2 Popup (`entrypoints/popup/App.tsx`)
-Purpose: quick controls for focused runner when sidepanel is closed/minimized.
-
-Displayed info:
-- Active runner count.
-- Focused routine name and current step.
-
-Actions:
-- Previous / Next
-- Open current
-- Stop
-- Next runner (cycles focus if multiple sessions exist)
-- Open sidepanel
-
-Hotkeys:
-- `Alt+Shift+Left` and `Alt+Shift+Right` for focused runner navigation.
-
-## 6) Runner lifecycle and navigation logic
-Implemented mainly in `lib/navigation.ts` and `lib/session.ts`.
-
-## 6.1 Start routine flow
-Function: `startRoutine(routine, mode)`.
-
-Rules:
-- Routine must be saved (`id` required).
-- Routine must have at least one link.
-- If session for `routineId` already exists:
-  - No duplicate session is created.
-  - Existing session is focused.
-  - Returns `alreadyRunning: true`.
-
-If new session needed:
-- Mode `same-tab`:
-  - Creates one dedicated tab and groups it.
-  - Reuses that tab for step navigation by URL updates.
-- Mode `tab-group`:
-  - Creates one tab per routine link and groups them.
-  - Navigation activates existing target tab; no URL rewrite on existing tab.
-
-## 6.2 Navigation
-Functions:
-- `navigateSessionByOffset(routineId, offset)`
-- `navigateToIndex(routine, session, index)`
-- `openCurrentSessionLink(routineId)`
-
-Mode behavior:
-- Single-tab mode:
-  - Updates one tracked tab URL to target step.
-  - If tracked tab is gone, creates replacement tab and re-groups when possible.
-- Multi-tab mode:
-  - Activates target tab if present.
-  - Creates missing tab only when needed and attempts to reattach it to group.
-  - Avoids forced URL rewrite refresh for existing tabs.
-
-## 6.3 Stop/delete cleanup
-- `stopActiveRoutine(routineId)` destroys that routine session and closes owned tabs.
-- Deleting a routine from sidepanel first tries stopping its session, then deletes DB record.
-- Tabs are closed via `browser.tabs.remove` on deduped session tab ids.
-
-## 6.4 External cleanup triggers
-Background listener in `entrypoints/background.ts`:
-- On `browser.tabGroups.onRemoved`, session entries with same `tabGroupId` are removed.
-- Prevents stale runner sessions when user manually deletes tab groups.
-
-## 7) Session and focus model details
-`lib/session.ts` responsibilities:
-- Read/write canonical `RunnerState` (`sessions` + `focusedRoutineId`).
-- Normalize and dedupe sessions by `routineId`.
-- Maintain valid focus.
-- Provide subscription helpers using `browser.storage.onChanged`.
-- Provide compatibility wrappers (`getActiveSession`, `setActiveSession`, etc.) for older single-runner callsites.
-- Migrate legacy `activeSession` to new model automatically.
-
-Focus semantics:
-- All runner controls in sidepanel Runner Home and popup act on focused routine unless a routineId is explicitly provided.
-- Starting existing runner or manually focusing sets that routine as focused.
-
-## 8) Theming and visual system
-- Theme state key: `webroutines-theme` in `localStorage`.
-- `ThemeProvider` applies `light`/`dark` class on `document.documentElement`.
-- Shared CSS variables live in `entrypoints/shared/styles.css`.
-- Sidepanel and popup both import shared styles and are wrapped by `ThemeProvider`.
-
-## 9) Permissions and Chrome API usage
-Manifest permissions in `wxt.config.ts`:
+## 8) Permissions and APIs
+Current effective MV3 permissions:
 - `storage`
 - `tabGroups`
 - `unlimitedStorage`
+- `sidePanel`
+- host permissions: `<all_urls>` (for content script + focus controller behavior)
 
-APIs used:
+Main APIs used:
 - `browser.sidePanel.*`
 - `browser.tabs.*`
 - `browser.tabGroups.*`
+- `browser.storage.local`
 - `browser.storage.session`
 - `browser.storage.onChanged`
 
-## 10) Important project decisions
-Current behavior decisions:
-- One runner max per routine id.
-- Multiple routines can run concurrently.
-- Both run modes are tab-group-backed to isolate runner-owned tabs from user normal browsing.
-- Stopping a runner is destructive for that runner's tabs (tabs are closed).
-- Starting an already-running routine focuses existing runner instead of replacing/restarting.
+## 9) Known limitations
+- Sidepanel is still a single large `App.tsx` (no router decomposition yet).
+- No automated unit/integration test suite yet.
+- No routine history analytics, scheduling, folders, or sharing.
+- No omnibox/new-tab integrations.
+- Focus controller intentionally kept minimal (no expanded/detailed mode).
 
-## 11) Known limitations and risks
-- No automated test suite yet (behavior validated via compile/build/manual flow).
-- Sidepanel view routing is component-state-based, not URL/router-based.
-- Multi-tab session stores `tabIds` with possible sparse behavior fallback; cleanup logic ignores invalid ids.
-- No sync/cloud account model yet; data is local only (with JSON backup import/export).
-- No per-runner metadata beyond session + routine (for example custom group colors, labels, paused status).
+## 10) Improvements doc alignment (done vs pending)
+Reference doc: `docs/extra/WEBROUTINES_IMPROVEMENTS.md`
 
-## 12) Suggested next improvement areas
-Product/UX:
-- Add per-runner "Restart" and "Resume from step" options.
-- Add runner history and recent routine quick start.
-- Add richer URL labels/titles and inline editable link metadata.
-- Add bulk routine operations and search/filter.
+Substantially done already:
+- Focus mini-controller MVP exists (compact pill + sidebar return + drag/persist).
+- Settings foundation and options page exist.
+- Theme system now has stable extension theming and adaptive mini-controller behavior.
+- Runner Home and editor got practical UX upgrades (Feature 3).
 
-Reliability:
-- Add tab event listeners (`tabs.onRemoved`, `tabs.onUpdated`) to keep sessions tighter to reality.
-- Add lightweight telemetry/logging in dev mode for session transitions.
+Still pending from improvements doc:
+- Sidepanel router migration (`HashRouter`) and page/component decomposition.
+- Rich routine cards (favicon strip, richer metadata).
+- Tab lifecycle resilience listeners (`tabs.onRemoved`, `tabs.onUpdated` divergence handling).
+- Routine history/stats schema and UI.
+- Folders/categories.
+- Command palette.
+- Omnibox/new-tab integrations.
+- Sharing flows (markdown/link/QR).
+- Per-step config (notes/skip/auto-advance).
+- Onboarding flow.
+- Error boundary/recovery framework.
 
-Architecture:
-- Split sidepanel `App.tsx` into smaller components/modules.
-- Introduce typed action/state reducers for clearer state transitions.
-- Add unit tests around `lib/session.ts` and `lib/navigation.ts`.
+## 11) Pragmatic next explorations (added for future planning)
+Suggested to explore next (in this order):
+1. Sidepanel decomposition + lightweight routing:
+   - Split `entrypoints/sidepanel/App.tsx` into view components first.
+   - Add route-style state only after component split to reduce migration risk.
+2. Session resilience hardening:
+   - Implement `tabs.onRemoved` sync into sessions.
+   - Add minimal `tabs.onUpdated` divergence marker (without heavy UI first pass).
+3. Routine metadata upgrades with low schema risk:
+   - Add optional `lastRunAt`.
+   - Show better "recently used" ordering in routines view.
+4. Command palette in sidepanel:
+   - Start routine, focus routine, stop routine, open settings.
+5. History MVP:
+   - Add `runs` table with start/stop timestamps and completion status.
+   - Keep UI simple (recent runs + completion rate).
 
-Data:
-- Optional browser sync for lightweight routine metadata.
-- Future cloud sync/offline conflict strategy if needed.
-
-## 13) File map (quick orientation)
-- `entrypoints/background.ts`
-- `entrypoints/sidepanel/App.tsx`
-- `entrypoints/sidepanel/main.tsx`
-- `entrypoints/popup/App.tsx`
-- `entrypoints/popup/main.tsx`
-- `entrypoints/shared/styles.css`
-- `lib/types.ts`
-- `lib/db.ts`
-- `lib/routines.ts`
-- `lib/session.ts`
-- `lib/navigation.ts`
-- `components/theme-provider.tsx`
-- `components/theme-toggle.tsx`
-- `README.md`
-- `docs/PRD.md`
-- `feature-list-1.md`
-- `feature-list-2.md`
-
-## 14) Context prompt you can paste into normal chat
-Use this starter prompt with this document:
-
-"You are helping me improve a Chrome MV3 extension called WebRoutines. Read the attached project context and propose improvements for [area]. Keep proposals compatible with current architecture (WXT + React + Dexie + session-based multi-runner tab-group model), and include migration-safe implementation steps."
+Nice-to-have but lower priority for now:
+- Folders/categories
+- Sharing/QR workflows
+- Omnibox/new-tab overrides
+- Per-step auto-advance and notes
 
