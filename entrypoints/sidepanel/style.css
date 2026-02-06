@@ -1,0 +1,183 @@
+:root {
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #122033;
+  background: #f6f8fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px;
+}
+
+.panel-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.panel-header p {
+  margin: 4px 0 0;
+  color: #4e5d70;
+  font-size: 0.92rem;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #dce3ee;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.routine-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+textarea {
+  border: 1px solid #c7d3e2;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #ffffff;
+  color: #122033;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actions.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+button {
+  border: 1px solid #1463ff;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #1463ff;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+button.secondary {
+  border-color: #d3dae7;
+  background: #ffffff;
+  color: #122033;
+}
+
+button.danger {
+  border-color: #cc2b2b;
+  background: #cc2b2b;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.routine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.routine-item {
+  border: 1px solid #dce3ee;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcff;
+}
+
+.routine-item h3 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.routine-item ol {
+  margin: 8px 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #33485f;
+  font-size: 0.82rem;
+}
+
+.step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.step {
+  text-align: left;
+  border: 1px solid #d3dae7;
+  background: #ffffff;
+  color: #122033;
+}
+
+.step.is-active {
+  border-color: #1463ff;
+  background: #eaf1ff;
+}
+
+.muted {
+  color: #5e6f85;
+  font-size: 0.86rem;
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+}
+
+.notice.error {
+  background: #ffe7e7;
+  color: #8a1a1a;
+  border: 1px solid #f0b2b2;
+}
+
+.notice.success {
+  background: #e8f7ec;
+  color: #15552a;
+  border: 1px solid #bde3c7;
+}
