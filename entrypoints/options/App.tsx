@@ -1,6 +1,23 @@
 import { useMemo } from 'react';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { setSettingsPatch } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
 
@@ -23,18 +40,16 @@ function App() {
     await setSettingsPatch({ staticTheme: value });
   }
 
-  async function onSetDefaultRunMode(value: string) {
-    if (value !== 'same-tab' && value !== 'tab-group') {
+  async function onSetTabLoadMode(value: string) {
+    if (value !== 'eager' && value !== 'lazy') {
       return;
     }
 
-    await setSettingsPatch({ defaultRunMode: value });
+    await setSettingsPatch({ tabLoadMode: value });
   }
 
   async function onSetBooleanSetting(
-    key:
-      | 'confirmBeforeStop'
-      | 'focusModeEnabled',
+    key: 'confirmBeforeStop' | 'focusModeEnabled',
     checked: boolean,
   ) {
     await setSettingsPatch({ [key]: checked });
@@ -51,60 +66,92 @@ function App() {
 
       <Card>
         <CardHeader>
-          <CardTitle>General</CardTitle>
-          <CardDescription>Core runner behavior across sidepanel, popup, and focus controller.</CardDescription>
+          <CardTitle>Appearance</CardTitle>
+          <CardDescription>Choose the extension theme for sidepanel and popup.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium">Default run mode</span>
-            <select
-              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
-              value={settings.defaultRunMode}
-              onChange={(event) => void onSetDefaultRunMode(event.target.value)}
-            >
-              <option value="tab-group">Tab group</option>
-              <option value="same-tab">Single tab</option>
-            </select>
-          </label>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={settings.confirmBeforeStop}
-              onChange={(event) => void onSetBooleanSetting('confirmBeforeStop', event.target.checked)}
-            />
-            Confirm before stop actions
-          </label>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={settings.focusModeEnabled}
-              onChange={(event) => void onSetBooleanSetting('focusModeEnabled', event.target.checked)}
-            />
-            Enable focus mini-controller mode
-          </label>
+        <CardContent>
+          <Label className="mb-1.5 block" htmlFor="options-theme-select">Theme</Label>
+          <Select
+            value={settings.staticTheme}
+            onValueChange={(value) => {
+              if (typeof value === 'string') {
+                void onSetStaticTheme(value);
+              }
+            }}
+          >
+            <SelectTrigger id="options-theme-select" className="w-full">
+              <SelectValue placeholder="Select theme" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="system">System</SelectItem>
+              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="dark">Dark</SelectItem>
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Appearance</CardTitle>
-          <CardDescription>Choose the extension theme for sidepanel and popup.</CardDescription>
+          <CardTitle>Tab Loading</CardTitle>
+          <CardDescription>Choose how tabs are created when a routine starts.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium">Theme</span>
-            <select
-              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
-              value={settings.staticTheme}
-              onChange={(event) => void onSetStaticTheme(event.target.value)}
-            >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
+        <CardContent className="space-y-3">
+          <RadioGroup
+            value={settings.tabLoadMode}
+            onValueChange={(value) => {
+              if (typeof value === 'string') {
+                void onSetTabLoadMode(value);
+              }
+            }}
+          >
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/70 p-2">
+              <RadioGroupItem value="eager" className="mt-0.5" />
+              <span>
+                <span className="block text-sm font-medium">Load all tabs at once</span>
+                <span className="text-muted-foreground text-xs">Opens every link when you start a routine.</span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/70 p-2">
+              <RadioGroupItem value="lazy" className="mt-0.5" />
+              <span>
+                <span className="block text-sm font-medium">Load tabs as you navigate</span>
+                <span className="text-muted-foreground text-xs">Creates tabs one-by-one as you move forward.</span>
+              </span>
+            </label>
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Runner</CardTitle>
+          <CardDescription>Safety and focus behavior.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium">Confirm before stop actions</p>
+              <p className="text-muted-foreground text-xs">Show confirmation before stop actions.</p>
+            </div>
+            <Switch
+              checked={settings.confirmBeforeStop}
+              onCheckedChange={(checked) => void onSetBooleanSetting('confirmBeforeStop', Boolean(checked))}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium">Enable focus mini-controller mode</p>
+              <p className="text-muted-foreground text-xs">Allow the floating focus controller.</p>
+            </div>
+            <Switch
+              checked={settings.focusModeEnabled}
+              onCheckedChange={(checked) => void onSetBooleanSetting('focusModeEnabled', Boolean(checked))}
+            />
+          </div>
         </CardContent>
       </Card>
     </main>

@@ -1,18 +1,24 @@
 import { Button } from '@/components/ui/button';
-import type { RoutineLink } from '@/lib/types';
+import type { RoutineLink, RoutineSession } from '@/lib/types';
 
 interface StepListProps {
   routineId: number;
   links: RoutineLink[];
+  session: RoutineSession;
   currentIndex: number;
   busyAction: string | null;
   onJump: (index: number) => void;
 }
 
-export function StepList({ routineId, links, currentIndex, busyAction, onJump }: StepListProps) {
+export function StepList({ routineId, links, session, currentIndex, busyAction, onJump }: StepListProps) {
   return (
     <div className="space-y-2">
       {links.map((link, index) => (
+        (() => {
+          const isLoaded = session.loadMode === 'eager' || typeof session.tabIds[index] === 'number';
+          const disabled = busyAction === `jump-${routineId}-${index}` || !isLoaded;
+
+          return (
         <Button
           key={link.id}
           type="button"
@@ -20,10 +26,12 @@ export function StepList({ routineId, links, currentIndex, busyAction, onJump }:
           size="sm"
           className="w-full justify-start"
           onClick={() => onJump(index)}
-          disabled={busyAction === `jump-${routineId}-${index}`}
+          disabled={disabled}
         >
-          {index + 1}. {link.url}
+          {session.loadMode === 'lazy' && !isLoaded ? '○' : '●'} {index + 1}. {link.url}
         </Button>
+          );
+        })()
       ))}
     </div>
   );

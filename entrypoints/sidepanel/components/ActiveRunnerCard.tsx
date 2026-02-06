@@ -34,8 +34,9 @@ export function ActiveRunnerCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-medium">{routine?.name ?? `Routine #${session.routineId}`}</p>
+          <p className="text-xs text-muted-foreground">Tab group runner</p>
           <p className="text-xs text-muted-foreground">
-            {session.mode === 'same-tab' ? 'Single-tab group' : 'Multi-tab group'}
+            Loading: {session.loadMode === 'lazy' ? 'lazy' : 'all tabs'}
           </p>
           <p className="text-xs text-muted-foreground">
             {progressLabel} · Active {formatElapsed(session.startedAt, clockNow)}

@@ -2,6 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeftIcon, GripVerticalIcon, PlusIcon, SettingsIcon, XIcon } from 'lucide-react';
 import { type DragEvent, type FormEvent, useEffect, useMemo, useState } from 'react';
 
+import { FaviconImage } from '@/components/FaviconImage';
+import { ImportFromTabsDialog } from '@/components/ImportFromTabsDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +23,7 @@ import {
   updateRoutine,
 } from '@/lib/routines';
 import type { RoutineLink } from '@/lib/types';
+import { getDisplayUrl } from '@/lib/url';
 
 interface EditorViewProps {
   routineId: number | null;
@@ -45,6 +48,7 @@ export function EditorView({
   const [confirmLinkRemovalId, setConfirmLinkRemovalId] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [loadedRoutineId, setLoadedRoutineId] = useState<number | null>(null);
+  const [importTabsDialogOpen, setImportTabsDialogOpen] = useState(false);
 
   const routine = useLiveQuery(
     async () => (routineId ? (await db.routines.get(routineId)) ?? null : null),
@@ -78,8 +82,9 @@ export function EditorView({
     setDraggingLinkId(null);
     setDropTargetLinkId(null);
     setConfirmLinkRemovalId(null);
+    setImportTabsDialogOpen(false);
     setLoadedRoutineId(routineId);
-  }, [loadedRoutineId, routine, routineId]);
+  }, [loadedRoutineId, routine, routineId, onError]);
 
   const parsedDraftInputUrls = useMemo(
     () => parseDraftInputUrls(newLinkInput),
@@ -90,6 +95,19 @@ export function EditorView({
     () => draftLinks.find((link) => link.id === confirmLinkRemovalId) ?? null,
     [confirmLinkRemovalId, draftLinks],
   );
+
+  const metadataText = useMemo(() => {
+    if (!routine) {
+      return `${draftLinks.length} links`;
+    }
+
+    const createdText = new Date(routine.createdAt).toLocaleDateString();
+    const lastRunText = routine.lastRunAt
+      ? new Date(routine.lastRunAt).toLocaleString()
+      : 'Never';
+
+    return `${draftLinks.length} links · Created ${createdText} · Last run ${lastRunText}`;
+  }, [draftLinks.length, routine]);
 
   useEffect(() => {
     if (!confirmLinkRemovalId) {
@@ -166,6 +184,28 @@ export function EditorView({
     );
   }
 
+  async function onAddImportedUrls(urls: string[]) {
+    onError(null);
+    onMessage(null);
+
+    const existingUrls = new Set(draftLinks.map((link) => link.url));
+    const urlsToAdd = urls.filter((url) => !existingUrls.has(url));
+
+    if (urlsToAdd.length === 0) {
+      onError('Selected tabs are already in this routine.');
+      return;
+    }
+
+    setDraftLinks((previous) => [...previous, ...urlsToAdd.map((url) => createRoutineLink(url))]);
+
+    const skippedCount = urls.length - urlsToAdd.length;
+    onMessage(
+      skippedCount > 0
+        ? `Imported ${urlsToAdd.length} tab${urlsToAdd.length === 1 ? '' : 's'} (${skippedCount} duplicates skipped).`
+        : `Imported ${urlsToAdd.length} tab${urlsToAdd.length === 1 ? '' : 's'}.`,
+    );
+  }
+
   function onConfirmRemoveDraftLink(linkId: string) {
     setDraftLinks((previous) => previous.filter((link) => link.id !== linkId));
     setConfirmLinkRemovalId(null);
@@ -225,26 +265,32 @@ export function EditorView({
     setDraggingLinkId(null);
     setDropTargetLinkId(null);
     setConfirmLinkRemovalId(null);
+    setImportTabsDialogOpen(false);
     setLoadedRoutineId(null);
   }
 
   return (
     <>
+      <ImportFromTabsDialog
+        open={importTabsDialogOpen}
+        existingUrls={draftLinks.map((link) => link.url)}
+        onOpenChange={setImportTabsDialogOpen}
+        onAddUrls={onAddImportedUrls}
+      />
+
       <Card size="sm">
         <CardHeader>
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <CardTitle>{routineId ? 'Edit Routine' : 'New Routine'}</CardTitle>
-              <CardDescription>Add links and drag to reorder sequence.</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" size="sm" variant="outline" onClick={onOpenSettings}>
-                <SettingsIcon />
-                Settings
-              </Button>
+          <div>
+            <CardTitle>{routineId ? 'Edit Routine' : 'New Routine'}</CardTitle>
+            <CardDescription>{metadataText}</CardDescription>
+            <div className="mt-2 flex items-center gap-2">
               <Button type="button" size="sm" variant="outline" onClick={onOpenRoutines}>
                 <ArrowLeftIcon />
                 Back to routines
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={onOpenSettings}>
+                <SettingsIcon />
+                Settings
               </Button>
             </div>
           </div>
@@ -267,16 +313,19 @@ export function EditorView({
 
             <div className="space-y-1.5">
               <Label htmlFor="routine-link">Add link</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="routine-link"
-                  value={newLinkInput}
-                  onChange={(event) => setNewLinkInput(event.target.value)}
-                  placeholder="https://example.com/blog, https://news.ycombinator.com"
-                />
+              <Input
+                id="routine-link"
+                value={newLinkInput}
+                onChange={(event) => setNewLinkInput(event.target.value)}
+                placeholder="https://example.com/blog, https://news.ycombinator.com"
+              />
+              <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" onClick={onAddDraftLink}>
                   <PlusIcon />
                   {parsedDraftInputUrls.length > 0 ? `Add (${parsedDraftInputUrls.length})` : 'Add'}
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => setImportTabsDialogOpen(true)}>
+                  Import from tabs
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -311,7 +360,8 @@ export function EditorView({
                 >
                   <GripVerticalIcon className="size-4 text-muted-foreground" />
                   <Badge variant="secondary">{index + 1}</Badge>
-                  <p className="flex-1 break-all text-xs text-muted-foreground">{link.url}</p>
+                  <FaviconImage url={link.url} sizeClassName="h-4 w-4" />
+                  <p className="flex-1 truncate text-xs text-muted-foreground">{getDisplayUrl(link.url)}</p>
                   <Button
                     type="button"
                     size="icon-xs"
@@ -350,13 +400,12 @@ export function EditorView({
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={busyAction === 'save-routine'}>
-                {routineId ? 'Update routine' : 'Create routine'}
-              </Button>
-
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/70 pt-3">
               <Button type="button" variant="outline" onClick={onOpenRoutines}>
                 Cancel
+              </Button>
+              <Button type="submit" disabled={busyAction === 'save-routine'}>
+                {routineId ? 'Save changes' : 'Create routine'}
               </Button>
             </div>
           </form>

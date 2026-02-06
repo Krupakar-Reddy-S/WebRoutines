@@ -1,4 +1,4 @@
-import type { NavigationMode } from '@/lib/types';
+import type { TabLoadMode } from '@/lib/types';
 
 export const SETTINGS_STORAGE_KEY = 'appSettings';
 
@@ -6,7 +6,7 @@ export type StaticTheme = 'light' | 'dark' | 'system';
 
 export interface AppSettings {
   staticTheme: StaticTheme;
-  defaultRunMode: NavigationMode;
+  tabLoadMode: TabLoadMode;
   confirmBeforeStop: boolean;
   focusModeEnabled: boolean;
 }
@@ -19,7 +19,7 @@ interface SettingsStorageRecord {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   staticTheme: 'system',
-  defaultRunMode: 'tab-group',
+  tabLoadMode: 'eager',
   confirmBeforeStop: true,
   focusModeEnabled: false,
 };
@@ -77,13 +77,16 @@ function normalizeSettings(value: PartialSettings | undefined): AppSettings {
   )
     ? value.staticTheme
     : DEFAULT_SETTINGS.staticTheme;
-  const defaultRunMode = (value?.defaultRunMode === 'same-tab' || value?.defaultRunMode === 'tab-group')
-    ? value.defaultRunMode
-    : DEFAULT_SETTINGS.defaultRunMode;
+  const tabLoadMode = (
+    value?.tabLoadMode === 'eager'
+    || value?.tabLoadMode === 'lazy'
+  )
+    ? value.tabLoadMode
+    : DEFAULT_SETTINGS.tabLoadMode;
 
   return {
     staticTheme,
-    defaultRunMode,
+    tabLoadMode,
     confirmBeforeStop: value?.confirmBeforeStop ?? DEFAULT_SETTINGS.confirmBeforeStop,
     focusModeEnabled: value?.focusModeEnabled ?? DEFAULT_SETTINGS.focusModeEnabled,
   };
@@ -96,7 +99,7 @@ function areSettingsEqual(left: PartialSettings | undefined, right: AppSettings)
 
   return (
     left.staticTheme === right.staticTheme
-    && left.defaultRunMode === right.defaultRunMode
+    && left.tabLoadMode === right.tabLoadMode
     && left.confirmBeforeStop === right.confirmBeforeStop
     && left.focusModeEnabled === right.focusModeEnabled
   );

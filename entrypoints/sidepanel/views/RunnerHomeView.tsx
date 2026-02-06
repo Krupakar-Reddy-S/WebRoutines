@@ -71,7 +71,7 @@ export function RunnerHomeView({
   }, [runnerState.focusedRoutineId, runnerState.sessions]);
 
   const activeRunnerRowsKey = useMemo(
-    () => runnerState.sessions.map((session) => `${session.routineId}:${session.currentIndex}:${session.mode}`).join('|'),
+    () => runnerState.sessions.map((session) => `${session.routineId}:${session.currentIndex}:${session.loadMode}`).join('|'),
     [runnerState.sessions],
   );
 
@@ -272,12 +272,12 @@ export function RunnerHomeView({
     <>
       <Card size="sm">
         <CardHeader>
-          <div className="flex items-center justify-between gap-2">
+          <div>
             <div>
               <CardTitle>Runner Home</CardTitle>
               <CardDescription>Focus on active routine progress.</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="mt-2 flex items-center gap-2">
               <Button type="button" size="sm" variant="outline" onClick={onOpenRoutines}>
                 Manage routines
               </Button>
@@ -400,6 +400,7 @@ export function RunnerHomeView({
               <StepList
                 routineId={focusedSession.routineId}
                 links={focusedRoutine.links}
+                session={focusedSession}
                 currentIndex={focusedSession.currentIndex}
                 busyAction={busyAction}
                 onJump={(index) => void onJumpToIndex(index)}

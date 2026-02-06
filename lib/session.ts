@@ -332,7 +332,9 @@ function normalizeSessions(value: RoutineSession[] | undefined): RoutineSession[
 
     byRoutineId.set(session.routineId, {
       ...session,
-      tabIds: Array.isArray(session.tabIds) ? session.tabIds.filter((id) => typeof id === 'number') : [],
+      mode: 'tab-group',
+      loadMode: session.loadMode === 'lazy' ? 'lazy' : 'eager',
+      tabIds: normalizeTabIds(session.tabIds),
     });
   }
 
@@ -346,7 +348,9 @@ function normalizeLegacySession(value: RoutineSession | undefined): RoutineSessi
 
   return {
     ...value,
-    tabIds: Array.isArray(value.tabIds) ? value.tabIds.filter((id) => typeof id === 'number') : [],
+    mode: 'tab-group',
+    loadMode: value.loadMode === 'lazy' ? 'lazy' : 'eager',
+    tabIds: normalizeTabIds(value.tabIds),
   };
 }
 
@@ -359,11 +363,19 @@ function isRoutineSession(value: unknown): value is RoutineSession {
 
   return (
     typeof session.routineId === 'number'
-    && typeof session.mode === 'string'
+    && (session.mode === 'tab-group' || session.mode === 'same-tab')
     && typeof session.currentIndex === 'number'
     && Array.isArray(session.tabIds)
     && typeof session.startedAt === 'number'
   );
+}
+
+function normalizeTabIds(tabIds: unknown): Array<number | null> {
+  if (!Array.isArray(tabIds)) {
+    return [];
+  }
+
+  return tabIds.map((id) => (typeof id === 'number' && id >= 0 ? id : null));
 }
 
 function arraysEqualByRoutineId(left: RoutineSession[], right: RoutineSession[]): boolean {

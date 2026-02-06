@@ -113,7 +113,7 @@ async function handleRunnerTabRemoved(tabId: number) {
 
     const removedIndex = session.tabIds.indexOf(tabId);
     const nextTabIds = session.tabIds.map((id, index) => (
-      index === removedIndex ? -1 : id
+      index === removedIndex ? null : id
     ));
     const validTabIds = nextTabIds.filter(isValidTabId);
 
@@ -160,7 +160,11 @@ async function handleRunnerTabMoved(tabId: number) {
       continue;
     }
 
-    if (session.mode !== 'tab-group' || typeof session.tabGroupId !== 'number') {
+    if (typeof session.tabGroupId !== 'number') {
+      continue;
+    }
+
+    if (session.loadMode === 'lazy') {
       continue;
     }
 
@@ -175,7 +179,12 @@ async function handleRunnerTabMoved(tabId: number) {
       .sort((left, right) => left.index - right.index)
       .map((tab) => tab.id as number);
 
-    if (orderedIds.length === 0 || arraysEqual(orderedIds, session.tabIds)) {
+    if (orderedIds.length === 0) {
+      continue;
+    }
+
+    const loadedIds = session.tabIds.filter(isValidTabId);
+    if (arraysEqual(orderedIds, loadedIds)) {
       continue;
     }
 
@@ -257,7 +266,7 @@ async function logStepChangeForSession(session: Parameters<typeof updateRoutineS
   }
 }
 
-function findNextValidIndex(values: number[], startIndex: number): number | null {
+function findNextValidIndex(values: Array<number | null>, startIndex: number): number | null {
   for (let index = startIndex; index < values.length; index += 1) {
     if (isValidTabId(values[index])) {
       return index;
@@ -267,7 +276,7 @@ function findNextValidIndex(values: number[], startIndex: number): number | null
   return null;
 }
 
-function findPreviousValidIndex(values: number[], startIndex: number): number | null {
+function findPreviousValidIndex(values: Array<number | null>, startIndex: number): number | null {
   for (let index = startIndex; index >= 0; index -= 1) {
     if (isValidTabId(values[index])) {
       return index;

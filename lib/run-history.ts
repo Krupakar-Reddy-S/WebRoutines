@@ -1,6 +1,5 @@
 import { db } from '@/lib/db';
 import type {
-  NavigationMode,
   Routine,
   RoutineRun,
   RoutineRunEventType,
@@ -16,7 +15,6 @@ interface EnsureRunResult {
 export async function createRunForSession(
   routine: Routine,
   session: RoutineSession,
-  mode: NavigationMode,
 ): Promise<number> {
   const totalSteps = routine.links.length;
   const startingStep = Math.min(session.currentIndex + 1, totalSteps || 0);
@@ -28,7 +26,7 @@ export async function createRunForSession(
     stepsCompleted: startingStep,
     totalSteps,
     completedFull: false,
-    mode,
+    mode: 'tab-group',
     durationMs: null,
   };
 
@@ -50,7 +48,7 @@ export async function ensureRunForSession(
     return null;
   }
 
-  const runId = await createRunForSession(routine, session, session.mode);
+  const runId = await createRunForSession(routine, session);
   return { runId, created: true };
 }
 

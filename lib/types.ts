@@ -1,4 +1,5 @@
-export type NavigationMode = 'same-tab' | 'tab-group';
+export type RoutineRunMode = 'same-tab' | 'tab-group';
+export type TabLoadMode = 'eager' | 'lazy';
 
 export interface RoutineLink {
   id: string;
@@ -17,11 +18,12 @@ export interface Routine {
 
 export interface RoutineSession {
   routineId: number;
-  mode: NavigationMode;
+  mode: 'tab-group';
+  loadMode: TabLoadMode;
   currentIndex: number;
   tabId: number | null;
   tabGroupId: number | null;
-  tabIds: number[];
+  tabIds: Array<number | null>;
   startedAt: number;
   runId?: number;
 }
@@ -38,7 +40,7 @@ export interface RoutineRun {
   stepsCompleted: number;
   totalSteps: number;
   completedFull: boolean;
-  mode: NavigationMode;
+  mode: RoutineRunMode;
   durationMs: number | null;
   stopReason?: RunStopReason;
 }

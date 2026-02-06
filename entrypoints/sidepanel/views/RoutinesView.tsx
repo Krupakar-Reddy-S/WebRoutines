@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeftIcon, PlusIcon, SettingsIcon, UploadIcon } from 'lucide-react';
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 
+import { RoutineAccordionCard } from '@/components/RoutineAccordionCard';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -10,7 +11,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { startRoutine, stopActiveRoutine } from '@/lib/navigation';
 import {
   createRoutine,
@@ -20,10 +28,7 @@ import {
   parseRoutineBackup,
 } from '@/lib/routines';
 import { getRunnerState, setFocusedRoutine, subscribeToRunnerState } from '@/lib/session';
-import { useSettings } from '@/lib/use-settings';
-import type { NavigationMode, Routine, RoutineSession } from '@/lib/types';
-
-import { RoutineCard } from '../components/RoutineCard';
+import type { Routine, RoutineSession } from '@/lib/types';
 
 interface RunnerState {
   sessions: RoutineSession[];
@@ -47,27 +52,59 @@ export function RoutinesView({
   onMessage,
   onError,
 }: RoutinesViewProps) {
-  const { settings } = useSettings();
   const routines = useLiveQuery(() => listRoutines(), []);
   const [runnerState, setRunnerState] = useState<RunnerState>({ sessions: [], focusedRoutineId: null });
-  const [routineSearchQuery, setRoutineSearchQuery] = useState('');
-  const [expandedRoutineIds, setExpandedRoutineIds] = useState<number[]>([]);
+  const [expandedRoutineId, setExpandedRoutineId] = useState<number | null>(null);
+  const [deleteDialogRoutine, setDeleteDialogRoutine] = useState<Routine | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [clockNow, setClockNow] = useState(() => Date.now());
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const isDeletingRoutine = Boolean(
+    deleteDialogRoutine?.id
+      && busyAction === `delete-${deleteDialogRoutine.id}`,
+  );
 
-  const filteredRoutines = useMemo(() => {
+  const sortedRoutines = useMemo(() => {
     if (!routines) {
       return routines;
     }
 
-    const query = routineSearchQuery.trim().toLowerCase();
+    const activeByRoutine = new Map(runnerState.sessions.map((session) => [session.routineId, session.startedAt]));
 
-    if (!query) {
-      return routines;
-    }
+    return [...routines].sort((left, right) => {
+      const leftRunningStamp = left.id ? activeByRoutine.get(left.id) : undefined;
+      const rightRunningStamp = right.id ? activeByRoutine.get(right.id) : undefined;
 
-    return routines.filter((routine) => routine.name.toLowerCase().includes(query));
-  }, [routineSearchQuery, routines]);
+      if (typeof leftRunningStamp === 'number' && typeof rightRunningStamp !== 'number') {
+        return -1;
+      }
+
+      if (typeof leftRunningStamp !== 'number' && typeof rightRunningStamp === 'number') {
+        return 1;
+      }
+
+      if (typeof leftRunningStamp === 'number' && typeof rightRunningStamp === 'number') {
+        return rightRunningStamp - leftRunningStamp;
+      }
+
+      const leftLastRun = left.lastRunAt ?? null;
+      const rightLastRun = right.lastRunAt ?? null;
+
+      if (typeof leftLastRun === 'number' && typeof rightLastRun === 'number') {
+        return rightLastRun - leftLastRun;
+      }
+
+      if (typeof leftLastRun === 'number') {
+        return -1;
+      }
+
+      if (typeof rightLastRun === 'number') {
+        return 1;
+      }
+
+      return right.createdAt - left.createdAt;
+    });
+  }, [routines, runnerState.sessions]);
 
   useEffect(() => {
     void getRunnerState().then(setRunnerState);
@@ -76,30 +113,31 @@ export function RoutinesView({
     return unsubscribe;
   }, []);
 
-  function onToggleRoutineLinks(routineId: number) {
-    setExpandedRoutineIds((previous) => (
-      previous.includes(routineId)
-        ? previous.filter((id) => id !== routineId)
-        : [...previous, routineId]
-    ));
-  }
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setClockNow(Date.now());
+    }, 60_000);
 
-  async function onStartRoutine(routine: Routine, mode: NavigationMode) {
+    return () => window.clearInterval(timerId);
+  }, []);
+
+  async function onStartRoutine(routine: Routine) {
     if (!routine.id) {
       return;
     }
 
-    setBusyAction(`start-${routine.id}-${mode}`);
+    setBusyAction(`start-${routine.id}`);
     onError(null);
     onMessage(null);
 
     try {
-      const result = await startRoutine(routine, mode);
+      const result = await startRoutine(routine);
 
       if (result.alreadyRunning) {
         onMessage(`Runner already active for "${routine.name}". Showing existing runner.`);
       } else {
-        onMessage(`Started "${routine.name}" in ${mode === 'same-tab' ? 'single-tab group' : 'multi-tab group'} mode.`);
+        const loadingLabel = result.session.loadMode === 'lazy' ? 'lazy loading' : 'load all tabs';
+        onMessage(`Started "${routine.name}" (${loadingLabel}).`);
       }
 
       onOpenRunner();
@@ -110,25 +148,35 @@ export function RoutinesView({
     }
   }
 
-  async function onDeleteRoutine(routine: Routine) {
+  function onRequestDeleteRoutine(routine: Routine) {
     if (!routine.id) {
       return;
     }
 
-    const shouldDelete = window.confirm(`Delete routine "${routine.name}"?`);
-    if (!shouldDelete) {
+    onError(null);
+    onMessage(null);
+    setDeleteDialogRoutine(routine);
+  }
+
+  async function onDeleteRoutine() {
+    const routineToDelete = deleteDialogRoutine;
+    if (!routineToDelete?.id) {
       return;
     }
 
-    setBusyAction(`delete-${routine.id}`);
+    setBusyAction(`delete-${routineToDelete.id}`);
     onError(null);
     onMessage(null);
 
     try {
-      const stopped = await stopActiveRoutine(routine.id);
-      await deleteRoutine(routine.id);
+      const stopped = await stopActiveRoutine(routineToDelete.id);
+      await deleteRoutine(routineToDelete.id);
 
       onMessage(stopped ? 'Routine deleted and active runner closed.' : 'Routine deleted.');
+      if (expandedRoutineId === routineToDelete.id) {
+        setExpandedRoutineId(null);
+      }
+      setDeleteDialogRoutine(null);
     } catch (deleteError) {
       onError(toErrorMessage(deleteError, 'Failed to delete routine.'));
     } finally {
@@ -218,19 +266,17 @@ export function RoutinesView({
 
       <Card size="sm">
         <CardHeader>
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <CardTitle>Routines</CardTitle>
-              <CardDescription>Create, run, edit, and backup routines.</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" size="sm" variant="outline" onClick={onOpenSettings}>
-                <SettingsIcon />
-                Settings
-              </Button>
+          <div>
+            <CardTitle>Routines</CardTitle>
+            <CardDescription>Create, run, edit, and backup routines.</CardDescription>
+            <div className="mt-2 flex items-center gap-2">
               <Button type="button" size="sm" variant="outline" onClick={onOpenRunner}>
                 <ArrowLeftIcon />
                 Back to runner
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={onOpenSettings}>
+                <SettingsIcon />
+                Settings
               </Button>
             </div>
           </div>
@@ -264,55 +310,105 @@ export function RoutinesView({
           <CardDescription>{routines?.length ?? 0} total routines</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Input
-            value={routineSearchQuery}
-            onChange={(event) => setRoutineSearchQuery(event.target.value)}
-            placeholder="Search routines by name"
-            aria-label="Search routines"
-          />
-
           {routines === undefined && <p className="text-sm text-muted-foreground">Loading routines...</p>}
           {routines?.length === 0 && <p className="text-sm text-muted-foreground">No routines yet.</p>}
-          {routines && routines.length > 0 && filteredRoutines?.length === 0 && (
-            <p className="text-sm text-muted-foreground">No routines match your search.</p>
-          )}
 
-          {filteredRoutines?.map((routine) => {
+          {sortedRoutines?.map((routine) => {
             const routineId = routine.id;
             const isRunning = runnerState.sessions.some((session) => session.routineId === routine.id);
-            const isExpanded = typeof routineId === 'number' && expandedRoutineIds.includes(routineId);
+            const isExpanded = typeof routineId === 'number' && expandedRoutineId === routineId;
 
             return (
-              <RoutineCard
+              <RoutineAccordionCard
                 key={routine.id}
                 routine={routine}
                 isRunning={isRunning}
                 isExpanded={isExpanded}
-                defaultRunMode={settings.defaultRunMode}
                 busyAction={busyAction}
+                clockNow={clockNow}
                 onToggleExpanded={() => {
-                  if (typeof routineId === 'number') {
-                    onToggleRoutineLinks(routineId);
+                  if (typeof routineId !== 'number') {
+                    return;
                   }
+
+                  setExpandedRoutineId((previous) => (previous === routineId ? null : routineId));
                 }}
-                onFocus={() => {
-                  if (typeof routineId === 'number') {
-                    void onFocusRoutineRunner(routineId);
-                  }
-                }}
-                onStart={(mode) => void onStartRoutine(routine, mode)}
+                onStart={() => void onStartRoutine(routine)}
                 onEdit={() => {
                   if (typeof routineId === 'number') {
                     onEditRoutine(routineId);
                   }
                 }}
                 onExport={() => void onExportRoutine(routine)}
-                onDelete={() => void onDeleteRoutine(routine)}
+                onDelete={() => onRequestDeleteRoutine(routine)}
+                onMessage={onMessage}
+                onError={onError}
               />
             );
           })}
         </CardContent>
       </Card>
+
+      {runnerState.sessions.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Running routines</p>
+              <div className="flex flex-wrap gap-2">
+                {runnerState.sessions.map((session) => (
+                  <Button
+                    key={session.routineId}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void onFocusRoutineRunner(session.routineId)}
+                  >
+                    Focus #{session.routineId}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog
+        open={Boolean(deleteDialogRoutine)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingRoutine) {
+            setDeleteDialogRoutine(null);
+          }
+        }}
+      >
+        <DialogContent showCloseButton={!isDeletingRoutine}>
+          <DialogHeader>
+            <DialogTitle>Delete routine?</DialogTitle>
+            <DialogDescription>
+              {deleteDialogRoutine
+                ? `This will permanently delete "${deleteDialogRoutine.name}".`
+                : 'This will permanently delete the selected routine.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteDialogRoutine(null)}
+              disabled={isDeletingRoutine}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void onDeleteRoutine()}
+              disabled={isDeletingRoutine}
+            >
+              Delete routine
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
