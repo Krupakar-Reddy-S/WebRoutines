@@ -1,5 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { DownloadIcon, GripVerticalIcon, PlusIcon, UploadIcon, XIcon } from 'lucide-react';
+import {
+  ArrowLeftIcon,
+  DownloadIcon,
+  GripVerticalIcon,
+  PlusIcon,
+  UploadIcon,
+  XIcon,
+} from 'lucide-react';
 import {
   type ChangeEvent,
   type DragEvent,
@@ -42,18 +49,30 @@ import {
   parseRoutineBackup,
   updateRoutine,
 } from '@/lib/routines';
-import { getActiveSession, subscribeToActiveSession } from '@/lib/session';
+import {
+  getRunnerState,
+  setFocusedRoutine,
+  subscribeToRunnerState,
+} from '@/lib/session';
 import type { NavigationMode, Routine, RoutineLink, RoutineSession } from '@/lib/types';
+
+type SidepanelView = 'runner' | 'routines' | 'editor';
+
+interface RunnerState {
+  sessions: RoutineSession[];
+  focusedRoutineId: number | null;
+}
 
 function App() {
   const routines = useLiveQuery(() => listRoutines(), []);
-  const [session, setSession] = useState<RoutineSession | null>(null);
+
+  const [view, setView] = useState<SidepanelView>('runner');
+  const [runnerState, setRunnerState] = useState<RunnerState>({ sessions: [], focusedRoutineId: null });
 
   const [name, setName] = useState('');
   const [newLinkInput, setNewLinkInput] = useState('');
   const [draftLinks, setDraftLinks] = useState<RoutineLink[]>([]);
   const [editingRoutineId, setEditingRoutineId] = useState<number | null>(null);
-
   const [draggingLinkId, setDraggingLinkId] = useState<string | null>(null);
 
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -62,28 +81,65 @@ function App() {
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
-  const activeRoutine = useLiveQuery(
-    async () => {
-      if (!session) {
-        return null;
-      }
-
-      return (await db.routines.get(session.routineId)) ?? null;
-    },
-    [session?.routineId],
-  );
-
-  const currentLink = useMemo(() => {
-    if (!session || !activeRoutine) {
+  const focusedSession = useMemo(() => {
+    if (runnerState.sessions.length === 0) {
       return null;
     }
 
-    return activeRoutine.links[session.currentIndex] ?? null;
-  }, [activeRoutine, session]);
+    if (typeof runnerState.focusedRoutineId === 'number') {
+      const focused = runnerState.sessions.find((session) => session.routineId === runnerState.focusedRoutineId);
+      if (focused) {
+        return focused;
+      }
+    }
+
+    return runnerState.sessions[0] ?? null;
+  }, [runnerState.focusedRoutineId, runnerState.sessions]);
+
+  const activeRunnerRowsKey = useMemo(
+    () => runnerState.sessions.map((session) => `${session.routineId}:${session.currentIndex}:${session.mode}`).join('|'),
+    [runnerState.sessions],
+  );
+
+  const activeRunnerRows = useLiveQuery(
+    async () => {
+      if (runnerState.sessions.length === 0) {
+        return [] as Array<{ session: RoutineSession; routine: Routine | null }>;
+      }
+
+      const routineIds = runnerState.sessions.map((session) => session.routineId);
+      const loaded = await db.routines.bulkGet(routineIds);
+
+      return runnerState.sessions.map((session, index) => ({
+        session,
+        routine: loaded[index] ?? null,
+      }));
+    },
+    [activeRunnerRowsKey],
+  );
+
+  const focusedRoutine = useLiveQuery(
+    async () => {
+      if (!focusedSession) {
+        return null;
+      }
+
+      return (await db.routines.get(focusedSession.routineId)) ?? null;
+    },
+    [focusedSession?.routineId],
+  );
+
+  const currentLink = useMemo(() => {
+    if (!focusedSession || !focusedRoutine) {
+      return null;
+    }
+
+    return focusedRoutine.links[focusedSession.currentIndex] ?? null;
+  }, [focusedRoutine, focusedSession]);
 
   useEffect(() => {
-    void getActiveSession().then(setSession);
-    const unsubscribe = subscribeToActiveSession(setSession);
+    void getRunnerState().then(setRunnerState);
+    const unsubscribe = subscribeToRunnerState(setRunnerState);
 
     return unsubscribe;
   }, []);
@@ -102,18 +158,34 @@ function App() {
 
       if (event.altKey && event.shiftKey && event.key === 'ArrowLeft') {
         event.preventDefault();
-        void onNavigateOffset(-1);
+        void onNavigateOffset(-1, focusedSession?.routineId);
       }
 
       if (event.altKey && event.shiftKey && event.key === 'ArrowRight') {
         event.preventDefault();
-        void onNavigateOffset(1);
+        void onNavigateOffset(1, focusedSession?.routineId);
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  });
+  }, [focusedSession?.routineId]);
+
+  function openCreateRoutinePage() {
+    resetEditor();
+    setView('editor');
+  }
+
+  function onEditRoutine(routine: Routine) {
+    setName(routine.name);
+    setDraftLinks(routine.links.map((link) => ({ ...link })));
+    setEditingRoutineId(routine.id ?? null);
+    setNewLinkInput('');
+    setDraggingLinkId(null);
+    setError(null);
+    setMessage(null);
+    setView('editor');
+  }
 
   async function onSaveRoutine(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -142,7 +214,8 @@ function App() {
         setMessage('Routine created.');
       }
 
-      resetForm();
+      resetEditor();
+      setView('routines');
     } catch (saveError) {
       setError(toErrorMessage(saveError, 'Failed to save routine.'));
     } finally {
@@ -221,17 +294,14 @@ function App() {
     setMessage(null);
 
     try {
+      const stopped = await stopActiveRoutine(routine.id);
       await deleteRoutine(routine.id);
 
-      if (session?.routineId === routine.id) {
-        await stopActiveRoutine();
-      }
-
       if (editingRoutineId === routine.id) {
-        resetForm();
+        resetEditor();
       }
 
-      setMessage('Routine deleted.');
+      setMessage(stopped ? 'Routine deleted and active runner closed.' : 'Routine deleted.');
     } catch (deleteError) {
       setError(toErrorMessage(deleteError, 'Failed to delete routine.'));
     } finally {
@@ -239,23 +309,25 @@ function App() {
     }
   }
 
-  function onEditRoutine(routine: Routine) {
-    setName(routine.name);
-    setDraftLinks(routine.links.map((link) => ({ ...link })));
-    setEditingRoutineId(routine.id ?? null);
-    setNewLinkInput('');
-    setError(null);
-    setMessage(null);
-  }
-
   async function onStartRoutine(routine: Routine, mode: NavigationMode) {
+    if (!routine.id) {
+      return;
+    }
+
     setBusyAction(`start-${routine.id}-${mode}`);
     setError(null);
     setMessage(null);
 
     try {
-      await startRoutine(routine, mode);
-      setMessage(`Started "${routine.name}" in ${mode === 'same-tab' ? 'same tab' : 'tab group'} mode.`);
+      const result = await startRoutine(routine, mode);
+
+      if (result.alreadyRunning) {
+        setMessage(`Runner already active for "${routine.name}". Showing existing runner.`);
+      } else {
+        setMessage(`Started "${routine.name}" in ${mode === 'same-tab' ? 'single-tab group' : 'multi-tab group'} mode.`);
+      }
+
+      setView('runner');
     } catch (startError) {
       setError(toErrorMessage(startError, 'Failed to start routine.'));
     } finally {
@@ -263,13 +335,26 @@ function App() {
     }
   }
 
-  async function onNavigateOffset(offset: number) {
-    setBusyAction(offset > 0 ? 'next' : 'previous');
+  async function onFocusRoutineRunner(routineId: number) {
+    await setFocusedRoutine(routineId);
+    setView('runner');
+    setError(null);
+  }
+
+  async function onNavigateOffset(offset: number, routineId?: number) {
+    const targetRoutineId = routineId ?? focusedSession?.routineId;
+
+    if (typeof targetRoutineId !== 'number') {
+      setError('No active routine to navigate.');
+      return;
+    }
+
+    setBusyAction(offset > 0 ? `next-${targetRoutineId}` : `previous-${targetRoutineId}`);
     setError(null);
     setMessage(null);
 
     try {
-      const updated = await navigateSessionByOffset(offset);
+      const updated = await navigateSessionByOffset(targetRoutineId, offset);
       if (!updated) {
         setError('No active routine to navigate.');
         return;
@@ -284,16 +369,16 @@ function App() {
   }
 
   async function onJumpToIndex(index: number) {
-    if (!activeRoutine || !session) {
+    if (!focusedRoutine || !focusedSession) {
       return;
     }
 
-    setBusyAction(`jump-${index}`);
+    setBusyAction(`jump-${focusedSession.routineId}-${index}`);
     setError(null);
     setMessage(null);
 
     try {
-      await navigateToIndex(activeRoutine, session, index);
+      await navigateToIndex(focusedRoutine, focusedSession, index);
       setMessage(`Jumped to step ${index + 1}.`);
     } catch (jumpError) {
       setError(toErrorMessage(jumpError, 'Failed to jump to step.'));
@@ -302,13 +387,20 @@ function App() {
     }
   }
 
-  async function onOpenCurrent() {
-    setBusyAction('open-current');
+  async function onOpenCurrent(routineId?: number) {
+    const targetRoutineId = routineId ?? focusedSession?.routineId;
+
+    if (typeof targetRoutineId !== 'number') {
+      setError('No active routine to open.');
+      return;
+    }
+
+    setBusyAction(`open-current-${targetRoutineId}`);
     setError(null);
     setMessage(null);
 
     try {
-      const updated = await openCurrentSessionLink();
+      const updated = await openCurrentSessionLink(targetRoutineId);
       if (!updated) {
         setError('No active routine to open.');
         return;
@@ -322,14 +414,21 @@ function App() {
     }
   }
 
-  async function onStopRoutine() {
-    setBusyAction('stop');
+  async function onStopRoutine(routineId?: number) {
+    const targetRoutineId = routineId ?? focusedSession?.routineId;
+
+    if (typeof targetRoutineId !== 'number') {
+      setError('No active routine to stop.');
+      return;
+    }
+
+    setBusyAction(`stop-${targetRoutineId}`);
     setError(null);
     setMessage(null);
 
     try {
-      await stopActiveRoutine();
-      setMessage('Active routine stopped.');
+      const stopped = await stopActiveRoutine(targetRoutineId);
+      setMessage(stopped ? 'Runner stopped and group tabs closed.' : 'No active runner found.');
     } catch (stopError) {
       setError(toErrorMessage(stopError, 'Failed to stop routine.'));
     } finally {
@@ -403,15 +502,13 @@ function App() {
     }
   }
 
-  function resetForm() {
+  function resetEditor() {
     setName('');
     setNewLinkInput('');
     setDraftLinks([]);
     setEditingRoutineId(null);
     setDraggingLinkId(null);
   }
-
-  const hasActiveSession = Boolean(session && activeRoutine);
 
   return (
     <main className="min-h-screen space-y-4 bg-background p-3 text-foreground">
@@ -423,259 +520,369 @@ function App() {
         onChange={onImportFileChange}
       />
 
-      <Card size="sm">
-        <CardHeader>
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <CardTitle>WebRoutines</CardTitle>
-              <CardDescription>Ordered daily browsing from your side panel.</CardDescription>
-            </div>
-            <ThemeToggle />
-          </div>
-        </CardHeader>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{editingRoutineId ? 'Edit Routine' : 'New Routine'}</CardTitle>
-          <CardDescription>Add links and drag to reorder sequence.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-3" onSubmit={onSaveRoutine}>
-            <div className="space-y-1.5">
-              <Label htmlFor="routine-name">Name</Label>
-              <Input
-                id="routine-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Morning Reads"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="routine-link">Add link</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="routine-link"
-                  value={newLinkInput}
-                  onChange={(event) => setNewLinkInput(event.target.value)}
-                  placeholder="https://example.com/blog"
-                />
-                <Button type="button" variant="outline" onClick={onAddDraftLink}>
-                  <PlusIcon />
-                  Add
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              {draftLinks.length === 0 && (
-                <p className="text-xs text-muted-foreground">No links yet. Add your first link above.</p>
-              )}
-              {draftLinks.map((link, index) => (
-                <div
-                  key={link.id}
-                  draggable
-                  onDragStart={(event) => onDragStartLink(event, link.id)}
-                  onDragOver={onDragOverLink}
-                  onDrop={(event) => onDropLink(event, link.id)}
-                  onDragEnd={() => setDraggingLinkId(null)}
-                  className="flex items-center gap-2 rounded-lg border border-border/70 bg-card px-2 py-1.5"
-                >
-                  <GripVerticalIcon className="size-4 text-muted-foreground" />
-                  <Badge variant="secondary">{index + 1}</Badge>
-                  <p className="flex-1 break-all text-xs text-muted-foreground">{link.url}</p>
-                  <Button
-                    type="button"
-                    size="icon-xs"
-                    variant="outline"
-                    onClick={() => onRemoveDraftLink(link.id)}
-                    aria-label="Remove link"
-                  >
-                    <XIcon />
+      {view === 'runner' && (
+        <>
+          <Card size="sm">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle>Runner Home</CardTitle>
+                  <CardDescription>Focus on active routine progress.</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setView('routines')}>
+                    Manage routines
                   </Button>
+                  <ThemeToggle />
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Active Runners</CardTitle>
+              <CardDescription>One runner max per routine, many routines can run together.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {activeRunnerRows === undefined && <p className="text-sm text-muted-foreground">Loading runners...</p>}
+              {activeRunnerRows?.length === 0 && <p className="text-sm text-muted-foreground">No active runners.</p>}
+
+              {activeRunnerRows?.map(({ session, routine }) => (
+                <div key={session.routineId} className="rounded-lg border border-border/70 p-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium">{routine?.name ?? `Routine #${session.routineId}`}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {session.mode === 'same-tab' ? 'Single-tab group' : 'Multi-tab group'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {runnerState.focusedRoutineId === session.routineId && <Badge variant="secondary">Focused</Badge>}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void onFocusRoutineRunner(session.routineId)}
+                      >
+                        Focus
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => void onStopRoutine(session.routineId)}
+                        disabled={busyAction === `stop-${session.routineId}`}
+                      >
+                        Stop
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               ))}
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={busyAction === 'save-routine'}>
-                {editingRoutineId ? 'Update routine' : 'Create routine'}
-              </Button>
+          <Card>
+            <CardHeader>
+              <CardTitle>Focused Runner</CardTitle>
+              <CardDescription>Hotkeys: Alt+Shift+Left / Alt+Shift+Right.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {!focusedSession && <p className="text-sm text-muted-foreground">No focused runner.</p>}
 
-              {editingRoutineId && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetForm}
-                  disabled={busyAction === 'save-routine'}
-                >
-                  Cancel edit
-                </Button>
-              )}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Routines</CardTitle>
-          <CardDescription>Run routines and import/export backups.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => void onExportBackup()}
-              disabled={busyAction === 'export-backup'}
-            >
-              <DownloadIcon />
-              Export JSON
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={triggerImportDialog}
-              disabled={busyAction === 'import-backup'}
-            >
-              <UploadIcon />
-              Import JSON
-            </Button>
-          </div>
-
-          {routines === undefined && <p className="text-sm text-muted-foreground">Loading routines...</p>}
-          {routines?.length === 0 && <p className="text-sm text-muted-foreground">No routines yet. Create one above.</p>}
-
-          {routines?.map((routine) => (
-            <Card key={routine.id} size="sm" className="border border-border/80">
-              <CardHeader>
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <CardTitle>{routine.name}</CardTitle>
-                    <CardDescription>{routine.links.length} links</CardDescription>
+              {focusedSession && focusedRoutine && (
+                <>
+                  <div className="space-y-1 text-sm">
+                    <p className="font-medium">
+                      {focusedRoutine.name} ({focusedSession.currentIndex + 1}/{focusedRoutine.links.length})
+                    </p>
+                    {currentLink && <p className="break-all text-xs text-muted-foreground">Current: {currentLink.url}</p>}
                   </div>
-                  <Badge variant="secondary">#{routine.id}</Badge>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void onNavigateOffset(-1, focusedSession.routineId)}
+                      disabled={busyAction === `previous-${focusedSession.routineId}`}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void onNavigateOffset(1, focusedSession.routineId)}
+                      disabled={busyAction === `next-${focusedSession.routineId}`}
+                    >
+                      Next
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void onOpenCurrent(focusedSession.routineId)}
+                      disabled={busyAction === `open-current-${focusedSession.routineId}`}
+                    >
+                      Open current
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => void onStopRoutine(focusedSession.routineId)}
+                      disabled={busyAction === `stop-${focusedSession.routineId}`}
+                    >
+                      Stop
+                    </Button>
+                  </div>
+
+                  <Separator />
+                  <div className="space-y-2">
+                    {focusedRoutine.links.map((link, index) => (
+                      <Button
+                        key={link.id}
+                        type="button"
+                        variant={index === focusedSession.currentIndex ? 'secondary' : 'outline'}
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => void onJumpToIndex(index)}
+                        disabled={busyAction === `jump-${focusedSession.routineId}-${index}`}
+                      >
+                        {index + 1}. {link.url}
+                      </Button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {view === 'routines' && (
+        <>
+          <Card size="sm">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle>Routines</CardTitle>
+                  <CardDescription>Create, run, edit, and backup routines.</CardDescription>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <ol className="space-y-1 pl-4 text-xs text-muted-foreground">
-                  {routine.links.map((link) => (
-                    <li key={link.id} className="list-decimal break-all">
-                      {link.url}
-                    </li>
-                  ))}
-                </ol>
-              </CardContent>
-              <CardFooter className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void onStartRoutine(routine, 'same-tab')}
-                  disabled={busyAction === `start-${routine.id}-same-tab`}
-                >
-                  Run same tab
-                </Button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void onStartRoutine(routine, 'tab-group')}
-                  disabled={busyAction === `start-${routine.id}-tab-group`}
-                >
-                  Run tab group
-                </Button>
-
-                <Button type="button" size="sm" variant="outline" onClick={() => onEditRoutine(routine)}>
-                  Edit
-                </Button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => void onDeleteRoutine(routine)}
-                  disabled={busyAction === `delete-${routine.id}`}
-                >
-                  Delete
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Runner</CardTitle>
-          <CardDescription>Hotkeys: Alt+Shift+Left (prev), Alt+Shift+Right (next).</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {!hasActiveSession && (
-            <p className="text-sm text-muted-foreground">No active routine. Start one from the routine list.</p>
-          )}
-
-          {hasActiveSession && session && activeRoutine && (
-            <>
-              <div className="space-y-1 text-sm">
-                <p className="font-medium">
-                  {activeRoutine.name} ({session.currentIndex + 1}/{activeRoutine.links.length})
-                </p>
-                {currentLink && <p className="break-all text-xs text-muted-foreground">Current: {currentLink.url}</p>}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="button" size="sm" onClick={() => void onNavigateOffset(-1)} disabled={busyAction === 'previous'}>
-                  Previous
-                </Button>
-                <Button type="button" size="sm" onClick={() => void onNavigateOffset(1)} disabled={busyAction === 'next'}>
-                  Next
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void onOpenCurrent()}
-                  disabled={busyAction === 'open-current'}
-                >
-                  Open current
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => void onStopRoutine()}
-                  disabled={busyAction === 'stop'}
-                >
-                  Stop
-                </Button>
-              </div>
-
-              <Separator />
-              <div className="space-y-2">
-                {activeRoutine.links.map((link, index) => (
-                  <Button
-                    key={link.id}
-                    type="button"
-                    variant={index === session.currentIndex ? 'secondary' : 'outline'}
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => void onJumpToIndex(index)}
-                    disabled={busyAction === `jump-${index}`}
-                  >
-                    {index + 1}. {link.url}
+                <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setView('runner')}>
+                    <ArrowLeftIcon />
+                    Back to runner
                   </Button>
-                ))}
+                  <ThemeToggle />
+                </div>
               </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={openCreateRoutinePage}>
+                  <PlusIcon />
+                  New routine
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void onExportBackup()}
+                  disabled={busyAction === 'export-backup'}
+                >
+                  <DownloadIcon />
+                  Export JSON
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={triggerImportDialog}
+                  disabled={busyAction === 'import-backup'}
+                >
+                  <UploadIcon />
+                  Import JSON
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>All routines</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {routines === undefined && <p className="text-sm text-muted-foreground">Loading routines...</p>}
+              {routines?.length === 0 && <p className="text-sm text-muted-foreground">No routines yet.</p>}
+
+              {routines?.map((routine) => {
+                const isRunning = runnerState.sessions.some((session) => session.routineId === routine.id);
+
+                return (
+                  <Card key={routine.id} size="sm" className="border border-border/80">
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <CardTitle>{routine.name}</CardTitle>
+                          <CardDescription>{routine.links.length} links</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isRunning && <Badge variant="secondary">Running</Badge>}
+                          <Badge variant="secondary">#{routine.id}</Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <ol className="space-y-1 pl-4 text-xs text-muted-foreground">
+                        {routine.links.map((link) => (
+                          <li key={link.id} className="list-decimal break-all">
+                            {link.url}
+                          </li>
+                        ))}
+                      </ol>
+                    </CardContent>
+                    <CardFooter className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => void onStartRoutine(routine, 'same-tab')}
+                        disabled={busyAction === `start-${routine.id}-same-tab`}
+                      >
+                        Run single-tab
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void onStartRoutine(routine, 'tab-group')}
+                        disabled={busyAction === `start-${routine.id}-tab-group`}
+                      >
+                        Run multi-tab
+                      </Button>
+
+                      <Button type="button" size="sm" variant="outline" onClick={() => onEditRoutine(routine)}>
+                        Edit
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => void onDeleteRoutine(routine)}
+                        disabled={busyAction === `delete-${routine.id}`}
+                      >
+                        Delete
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {view === 'editor' && (
+        <>
+          <Card size="sm">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle>{editingRoutineId ? 'Edit Routine' : 'New Routine'}</CardTitle>
+                  <CardDescription>Add links and drag to reorder sequence.</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setView('routines')}>
+                    <ArrowLeftIcon />
+                    Back to routines
+                  </Button>
+                  <ThemeToggle />
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <form className="space-y-3" onSubmit={onSaveRoutine}>
+                <div className="space-y-1.5">
+                  <Label htmlFor="routine-name">Name</Label>
+                  <Input
+                    id="routine-name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Morning Reads"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="routine-link">Add link</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="routine-link"
+                      value={newLinkInput}
+                      onChange={(event) => setNewLinkInput(event.target.value)}
+                      placeholder="https://example.com/blog"
+                    />
+                    <Button type="button" variant="outline" onClick={onAddDraftLink}>
+                      <PlusIcon />
+                      Add
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {draftLinks.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No links yet. Add your first link above.</p>
+                  )}
+
+                  {draftLinks.map((link, index) => (
+                    <div
+                      key={link.id}
+                      draggable
+                      onDragStart={(event) => onDragStartLink(event, link.id)}
+                      onDragOver={onDragOverLink}
+                      onDrop={(event) => onDropLink(event, link.id)}
+                      onDragEnd={() => setDraggingLinkId(null)}
+                      className="flex items-center gap-2 rounded-lg border border-border/70 bg-card px-2 py-1.5"
+                    >
+                      <GripVerticalIcon className="size-4 text-muted-foreground" />
+                      <Badge variant="secondary">{index + 1}</Badge>
+                      <p className="flex-1 break-all text-xs text-muted-foreground">{link.url}</p>
+                      <Button
+                        type="button"
+                        size="icon-xs"
+                        variant="outline"
+                        onClick={() => onRemoveDraftLink(link.id)}
+                        aria-label="Remove link"
+                      >
+                        <XIcon />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button type="submit" disabled={busyAction === 'save-routine'}>
+                    {editingRoutineId ? 'Update routine' : 'Create routine'}
+                  </Button>
+
+                  <Button type="button" variant="outline" onClick={() => setView('routines')}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {error && (
         <Card size="sm" className="border-destructive/30">
