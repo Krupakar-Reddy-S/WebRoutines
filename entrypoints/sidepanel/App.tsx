@@ -74,6 +74,8 @@ function App() {
   const [draftLinks, setDraftLinks] = useState<RoutineLink[]>([]);
   const [editingRoutineId, setEditingRoutineId] = useState<number | null>(null);
   const [draggingLinkId, setDraggingLinkId] = useState<string | null>(null);
+  const [routineSearchQuery, setRoutineSearchQuery] = useState('');
+  const [expandedRoutineIds, setExpandedRoutineIds] = useState<number[]>([]);
 
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +139,20 @@ function App() {
 
     return focusedRoutine.links[focusedSession.currentIndex] ?? null;
   }, [focusedRoutine, focusedSession]);
+
+  const filteredRoutines = useMemo(() => {
+    if (!routines) {
+      return routines;
+    }
+
+    const query = routineSearchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return routines;
+    }
+
+    return routines.filter((routine) => routine.name.toLowerCase().includes(query));
+  }, [routineSearchQuery, routines]);
 
   useEffect(() => {
     void getRunnerState().then(setRunnerState);
@@ -348,6 +364,14 @@ function App() {
     await setFocusedRoutine(routineId);
     setView('runner');
     setError(null);
+  }
+
+  function onToggleRoutineLinks(routineId: number) {
+    setExpandedRoutineIds((previous) => (
+      previous.includes(routineId)
+        ? previous.filter((id) => id !== routineId)
+        : [...previous, routineId]
+    ));
   }
 
   async function onNavigateOffset(offset: number, routineId?: number) {
@@ -749,13 +773,30 @@ function App() {
           <Card>
             <CardHeader>
               <CardTitle>All routines</CardTitle>
+              <CardDescription>{routines?.length ?? 0} total routines</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <Input
+                value={routineSearchQuery}
+                onChange={(event) => setRoutineSearchQuery(event.target.value)}
+                placeholder="Search routines by name"
+                aria-label="Search routines"
+              />
+
               {routines === undefined && <p className="text-sm text-muted-foreground">Loading routines...</p>}
               {routines?.length === 0 && <p className="text-sm text-muted-foreground">No routines yet.</p>}
+              {routines && routines.length > 0 && filteredRoutines?.length === 0 && (
+                <p className="text-sm text-muted-foreground">No routines match your search.</p>
+              )}
 
-              {routines?.map((routine) => {
+              {filteredRoutines?.map((routine) => {
+                const routineId = routine.id;
                 const isRunning = runnerState.sessions.some((session) => session.routineId === routine.id);
+                const isExpanded = typeof routineId === 'number' && expandedRoutineIds.includes(routineId);
+                const hasHiddenLinks = routine.links.length > 3;
+                const visibleLinks = hasHiddenLinks && !isExpanded
+                  ? routine.links.slice(0, 3)
+                  : routine.links;
 
                 return (
                   <Card key={routine.id} size="sm" className="border border-border/80">
@@ -767,18 +808,38 @@ function App() {
                         </div>
                         <div className="flex items-center gap-2">
                           {isRunning && <Badge variant="secondary">Running</Badge>}
+                          {isRunning && typeof routineId === 'number' && (
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="outline"
+                              onClick={() => void onFocusRoutineRunner(routineId)}
+                            >
+                              Focus
+                            </Button>
+                          )}
                           <Badge variant="secondary">#{routine.id}</Badge>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <ol className="space-y-1 pl-4 text-xs text-muted-foreground">
-                        {routine.links.map((link) => (
+                        {visibleLinks.map((link) => (
                           <li key={link.id} className="list-decimal break-all">
                             {link.url}
                           </li>
                         ))}
                       </ol>
+                      {hasHiddenLinks && typeof routineId === 'number' && (
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => onToggleRoutineLinks(routineId)}
+                        >
+                          {isExpanded ? 'Show less' : `Show all ${routine.links.length} links`}
+                        </Button>
+                      )}
                     </CardContent>
                     <CardFooter className="grid grid-cols-2 gap-2">
                       <Button
