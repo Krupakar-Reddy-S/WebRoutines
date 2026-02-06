@@ -1,0 +1,100 @@
+:root {
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #122033;
+  background: #f7f9fc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+.popup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+header p {
+  margin: 2px 0 0;
+  color: #5e6f85;
+  font-size: 0.85rem;
+}
+
+.session {
+  border: 1px solid #dce3ee;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.routine-name {
+  margin: 0;
+  font-weight: 700;
+}
+
+.link {
+  margin: 8px 0 0;
+  color: #2e4560;
+  font-size: 0.82rem;
+  word-break: break-all;
+}
+
+.muted {
+  margin: 4px 0 0;
+  color: #5e6f85;
+  font-size: 0.8rem;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+button {
+  border: 1px solid #1463ff;
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: #1463ff;
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.secondary {
+  border-color: #d3dae7;
+  background: #ffffff;
+  color: #122033;
+}
+
+button.danger {
+  border-color: #cc2b2b;
+  background: #cc2b2b;
+}
+
+button.full {
+  width: 100%;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.status {
+  margin: 0;
+  color: #2b3f58;
+  font-size: 0.82rem;
+}

@@ -74,7 +74,7 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - [x] Task 2: Add Dexie database schema, repositories, and session storage helpers.
 - [x] Task 3: Build side panel routine CRUD UI (create, list, delete, edit basic links).
 - [x] Task 4: Build routine runner (same tab + tab group launch, prev/next navigation).
-- [ ] Task 5: Build popup minimized controls synced to active session.
+- [x] Task 5: Build popup minimized controls synced to active session.
 - [ ] Task 6: Run build/type validation and polish docs.
 
 ## Progress log
@@ -83,3 +83,4 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - 2026-02-06: Task 2 completed with Dexie setup, routine schema/CRUD helpers, URL parsing utilities, and session state storage/subscribe helpers.
 - 2026-02-06: Task 3 completed with side panel UI for creating, editing, deleting, and listing routines from IndexedDB.
 - 2026-02-06: Task 4 completed with routine runner behavior for same-tab and tab-group modes plus previous/next/jump navigation.
+- 2026-02-06: Task 5 completed with minimized popup controls for previous/next/open-current/stop plus one-click side panel open.
