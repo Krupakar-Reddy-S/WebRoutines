@@ -56,6 +56,7 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 - `currentIndex` (number)
 - `tabId` (number | null)
 - `tabGroupId` (number | null)
+- `tabIds` (number[])
 - `startedAt` (number)
 
 ## UX outline (MVP)
@@ -70,7 +71,7 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 
 ## Task checklist
 - [x] Task 1: Bootstrap extension foundation from research stack (WXT + MV3 + side panel + popup + background setup).
-- [ ] Task 2: Add Dexie database schema, repositories, and session storage helpers.
+- [x] Task 2: Add Dexie database schema, repositories, and session storage helpers.
 - [ ] Task 3: Build side panel routine CRUD UI (create, list, delete, edit basic links).
 - [ ] Task 4: Build routine runner (same tab + tab group launch, prev/next navigation).
 - [ ] Task 5: Build popup minimized controls synced to active session.
@@ -79,3 +80,4 @@ People who read multiple static pages daily (blogs, docs, newsletters, dashboard
 ## Progress log
 - 2026-02-06: PRD initialized with MVP scope, architecture choices, and implementation checklist.
 - 2026-02-06: Task 1 completed with WXT/Bun bootstrap, MV3 manifest setup, side panel permission wiring, and thin background side panel behavior configuration.
+- 2026-02-06: Task 2 completed with Dexie setup, routine schema/CRUD helpers, URL parsing utilities, and session state storage/subscribe helpers.
