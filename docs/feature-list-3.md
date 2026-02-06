@@ -30,7 +30,7 @@ Ship low-complexity UI/UX improvements that make routine running and management 
 - [x] Define Feature List 3 scope and implementation plan.
 - [x] Task 1: Runner Home progress + elapsed time + empty-state CTA.
 - [x] Task 2: Routines search + compact link previews + focus action.
-- [ ] Task 3: Editor bulk URL add + drag/drop affordance polish.
+- [x] Task 3: Editor bulk URL add + drag/drop affordance polish.
 - [ ] Task 4: Feedback/accessibility polish in sidepanel/popup.
 - [ ] Task 5: docs finalization + compile/build validation checkpoint.
 
@@ -38,3 +38,4 @@ Ship low-complexity UI/UX improvements that make routine running and management 
 - 2026-02-06: Created `feature-list-3.md` with approved simple UX scope and task checklist.
 - 2026-02-06: Added Runner Home progress bars, elapsed-runtime labels, and an empty-state CTA to start routines faster.
 - 2026-02-06: Added routine search, expandable/collapsed long link previews, and quick focus action for already-running routines.
+- 2026-02-06: Added bulk URL paste in the editor and improved drag/drop reorder feedback with clear target highlighting.

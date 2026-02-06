@@ -31,6 +31,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { db } from '@/lib/db';
 import {
   navigateSessionByOffset,
@@ -46,6 +47,7 @@ import {
   deleteRoutine,
   listRoutines,
   normalizeRoutineUrl,
+  parseLinksFromText,
   parseRoutineBackup,
   updateRoutine,
 } from '@/lib/routines';
@@ -74,6 +76,8 @@ function App() {
   const [draftLinks, setDraftLinks] = useState<RoutineLink[]>([]);
   const [editingRoutineId, setEditingRoutineId] = useState<number | null>(null);
   const [draggingLinkId, setDraggingLinkId] = useState<string | null>(null);
+  const [dropTargetLinkId, setDropTargetLinkId] = useState<string | null>(null);
+  const [bulkLinkInput, setBulkLinkInput] = useState('');
   const [routineSearchQuery, setRoutineSearchQuery] = useState('');
   const [expandedRoutineIds, setExpandedRoutineIds] = useState<number[]>([]);
 
@@ -207,6 +211,8 @@ function App() {
     setEditingRoutineId(routine.id ?? null);
     setNewLinkInput('');
     setDraggingLinkId(null);
+    setDropTargetLinkId(null);
+    setBulkLinkInput('');
     setError(null);
     setMessage(null);
     setView('editor');
@@ -272,9 +278,44 @@ function App() {
     setDraftLinks((previous) => previous.filter((link) => link.id !== linkId));
   }
 
+  function onAddBulkLinks() {
+    setError(null);
+    setMessage(null);
+
+    const parsedLinks = parseLinksFromText(bulkLinkInput);
+
+    if (parsedLinks.length === 0) {
+      setError('Paste at least one valid http/https URL (one per line).');
+      return;
+    }
+
+    const existingUrls = new Set(draftLinks.map((link) => link.url));
+    const linksToAdd = parsedLinks.filter((link) => !existingUrls.has(link.url));
+
+    if (linksToAdd.length === 0) {
+      setError('All pasted links already exist in this routine.');
+      return;
+    }
+
+    setDraftLinks((previous) => [...previous, ...linksToAdd]);
+    setBulkLinkInput('');
+    setMessage(`Added ${linksToAdd.length} link${linksToAdd.length === 1 ? '' : 's'} from pasted list.`);
+  }
+
   function onDragStartLink(event: DragEvent<HTMLDivElement>, linkId: string) {
     setDraggingLinkId(linkId);
+    setDropTargetLinkId(linkId);
     event.dataTransfer.effectAllowed = 'move';
+  }
+
+  function onDragEnterLink(event: DragEvent<HTMLDivElement>, targetLinkId: string) {
+    event.preventDefault();
+
+    if (!draggingLinkId || draggingLinkId === targetLinkId) {
+      return;
+    }
+
+    setDropTargetLinkId(targetLinkId);
   }
 
   function onDragOverLink(event: DragEvent<HTMLDivElement>) {
@@ -286,6 +327,7 @@ function App() {
     event.preventDefault();
 
     if (!draggingLinkId || draggingLinkId === targetLinkId) {
+      setDropTargetLinkId(null);
       return;
     }
 
@@ -302,6 +344,8 @@ function App() {
       next.splice(toIndex, 0, moved);
       return next;
     });
+
+    setDropTargetLinkId(null);
   }
 
   async function onDeleteRoutine(routine: Routine) {
@@ -541,6 +585,8 @@ function App() {
     setDraftLinks([]);
     setEditingRoutineId(null);
     setDraggingLinkId(null);
+    setDropTargetLinkId(null);
+    setBulkLinkInput('');
   }
 
   return (
@@ -933,6 +979,19 @@ function App() {
                   </div>
                 </div>
 
+                <div className="space-y-1.5">
+                  <Label htmlFor="routine-link-bulk">Bulk add links</Label>
+                  <Textarea
+                    id="routine-link-bulk"
+                    value={bulkLinkInput}
+                    onChange={(event) => setBulkLinkInput(event.target.value)}
+                    placeholder={'https://news.ycombinator.com\nhttps://github.com/trending'}
+                  />
+                  <Button type="button" size="sm" variant="outline" onClick={onAddBulkLinks}>
+                    Add pasted links
+                  </Button>
+                </div>
+
                 <div className="space-y-2">
                   {draftLinks.length === 0 && (
                     <p className="text-xs text-muted-foreground">No links yet. Add your first link above.</p>
@@ -943,10 +1002,20 @@ function App() {
                       key={link.id}
                       draggable
                       onDragStart={(event) => onDragStartLink(event, link.id)}
+                      onDragEnter={(event) => onDragEnterLink(event, link.id)}
                       onDragOver={onDragOverLink}
                       onDrop={(event) => onDropLink(event, link.id)}
-                      onDragEnd={() => setDraggingLinkId(null)}
-                      className="flex items-center gap-2 rounded-lg border border-border/70 bg-card px-2 py-1.5"
+                      onDragEnd={() => {
+                        setDraggingLinkId(null);
+                        setDropTargetLinkId(null);
+                      }}
+                      className={`flex items-center gap-2 rounded-lg border bg-card px-2 py-1.5 transition-colors ${
+                        dropTargetLinkId === link.id && draggingLinkId !== link.id
+                          ? 'border-primary ring-2 ring-primary/20'
+                          : 'border-border/70'
+                      } ${
+                        draggingLinkId === link.id ? 'opacity-70' : ''
+                      }`}
                     >
                       <GripVerticalIcon className="size-4 text-muted-foreground" />
                       <Badge variant="secondary">{index + 1}</Badge>
