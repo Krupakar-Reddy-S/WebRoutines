@@ -108,18 +108,27 @@ export async function stopAllRoutines(): Promise<void> {
   }
 }
 
-export async function openSidePanelForCurrentWindow(): Promise<void> {
+export async function openSidePanelForCurrentWindow(): Promise<boolean> {
   if (!browser.sidePanel?.open) {
-    return;
+    return false;
   }
 
-  const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
-
-  if (typeof activeTab?.windowId !== 'number') {
-    return;
+  const windowId = await resolveTargetWindowId();
+  if (typeof windowId !== 'number') {
+    return false;
   }
 
-  await browser.sidePanel.open({ windowId: activeTab.windowId });
+  await browser.sidePanel.open({ windowId });
+  return true;
+}
+
+export async function openSidePanelForTab(tabId: number): Promise<boolean> {
+  if (!browser.sidePanel?.open || typeof tabId !== 'number') {
+    return false;
+  }
+
+  await browser.sidePanel.open({ tabId });
+  return true;
 }
 
 export async function navigateToIndex(
@@ -405,4 +414,29 @@ function clampIndex(index: number, length: number): number {
   }
 
   return index;
+}
+
+async function resolveTargetWindowId(): Promise<number | null> {
+  const [currentWindowActive] = await browser.tabs.query({ active: true, currentWindow: true });
+  if (typeof currentWindowActive?.windowId === 'number') {
+    return currentWindowActive.windowId;
+  }
+
+  const [lastFocusedActive] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+  if (typeof lastFocusedActive?.windowId === 'number') {
+    return lastFocusedActive.windowId;
+  }
+
+  if (browser.windows?.getLastFocused) {
+    try {
+      const lastFocusedWindow = await browser.windows.getLastFocused();
+      if (typeof lastFocusedWindow.id === 'number') {
+        return lastFocusedWindow.id;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }

@@ -4,6 +4,7 @@ import {
   DownloadIcon,
   GripVerticalIcon,
   PlusIcon,
+  SettingsIcon,
   UploadIcon,
   XIcon,
 } from 'lucide-react';
@@ -17,7 +18,6 @@ import {
   useState,
 } from 'react';
 
-import { ThemeToggle } from '@/components/theme-toggle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -50,13 +50,20 @@ import {
   updateRoutine,
 } from '@/lib/routines';
 import {
+  setSettingsPatch,
+} from '@/lib/settings';
+import {
+  consumeRequestedSidepanelView,
   getRunnerState,
+  setFocusModeActive,
   setFocusedRoutine,
+  subscribeToRequestedSidepanelView,
   subscribeToRunnerState,
 } from '@/lib/session';
+import { useSettings } from '@/lib/use-settings';
 import type { NavigationMode, Routine, RoutineLink, RoutineSession } from '@/lib/types';
 
-type SidepanelView = 'runner' | 'routines' | 'editor';
+type SidepanelView = 'runner' | 'routines' | 'editor' | 'settings';
 
 interface RunnerState {
   sessions: RoutineSession[];
@@ -64,6 +71,7 @@ interface RunnerState {
 }
 
 function App() {
+  const { settings } = useSettings();
   const routines = useLiveQuery(() => listRoutines(), []);
 
   const [view, setView] = useState<SidepanelView>('runner');
@@ -171,6 +179,20 @@ function App() {
     const unsubscribe = subscribeToRunnerState(setRunnerState);
 
     return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    void consumeRequestedSidepanelView().then((requestedView) => {
+      if (requestedView) {
+        setView(requestedView);
+      }
+    });
+
+    return subscribeToRequestedSidepanelView((requestedView) => {
+      setView(requestedView);
+      setError(null);
+      setMessage(null);
+    });
   }, []);
 
   useEffect(() => {
@@ -427,6 +449,12 @@ function App() {
     setError(null);
   }
 
+  async function onOpenSettingsPage() {
+    setError(null);
+    setMessage(null);
+    setView('settings');
+  }
+
   function onToggleRoutineLinks(routineId: number) {
     setExpandedRoutineIds((previous) => (
       previous.includes(routineId)
@@ -516,6 +544,13 @@ function App() {
       return;
     }
 
+    if (settings.confirmBeforeStop) {
+      const shouldStop = window.confirm('Stop this runner and close its runner tabs?');
+      if (!shouldStop) {
+        return;
+      }
+    }
+
     setBusyAction(`stop-${targetRoutineId}`);
     setError(null);
     setMessage(null);
@@ -528,6 +563,65 @@ function App() {
     } finally {
       setBusyAction(null);
     }
+  }
+
+  async function onEnterFocusMode() {
+    if (!focusedSession) {
+      setError('No focused runner to continue in focus mode.');
+      return;
+    }
+
+    setBusyAction('enter-focus-mode');
+    setError(null);
+    setMessage(null);
+
+    try {
+      if (!settings.focusModeEnabled) {
+        await setSettingsPatch({ focusModeEnabled: true });
+      }
+
+      await setFocusModeActive(true);
+      window.close();
+    } catch (focusModeError) {
+      setError(toErrorMessage(focusModeError, 'Unable to enter focus mode.'));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function onQuickEnableFocusMode() {
+    setError(null);
+    setMessage(null);
+
+    try {
+      await setSettingsPatch({ focusModeEnabled: true });
+      setMessage('Focus mode enabled. You can now enter focus mode from Runner Home.');
+    } catch (updateError) {
+      setError(toErrorMessage(updateError, 'Unable to enable focus mode.'));
+    }
+  }
+
+  async function onSetStaticTheme(value: string) {
+    if (value !== 'light' && value !== 'dark' && value !== 'system') {
+      return;
+    }
+
+    await setSettingsPatch({ staticTheme: value });
+  }
+
+  async function onSetDefaultRunMode(value: string) {
+    if (value !== 'same-tab' && value !== 'tab-group') {
+      return;
+    }
+
+    await setSettingsPatch({ defaultRunMode: value });
+  }
+
+  async function onSetBooleanSetting(
+    key: 'confirmBeforeStop' | 'focusModeEnabled',
+    checked: boolean,
+  ) {
+    await setSettingsPatch({ [key]: checked });
   }
 
   async function onExportRoutine(routine: Routine) {
@@ -627,7 +721,10 @@ function App() {
                   <Button type="button" size="sm" variant="outline" onClick={() => setView('routines')}>
                     Manage routines
                   </Button>
-                  <ThemeToggle />
+                  <Button type="button" size="sm" variant="outline" onClick={() => void onOpenSettingsPage()}>
+                    <SettingsIcon />
+                    Settings
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -757,6 +854,27 @@ function App() {
                     </Button>
                   </div>
 
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => void onEnterFocusMode()}
+                    disabled={busyAction === 'enter-focus-mode' || !settings.focusModeEnabled}
+                  >
+                    Enter focus mode
+                  </Button>
+                  {!settings.focusModeEnabled && (
+                    <div className="space-y-2 rounded-lg border border-dashed border-border/70 p-2">
+                      <p className="text-xs text-muted-foreground">
+                        Focus mode is currently disabled.
+                      </p>
+                      <Button type="button" size="xs" variant="outline" onClick={() => void onQuickEnableFocusMode()}>
+                        Enable focus mode
+                      </Button>
+                    </div>
+                  )}
+
                   <Separator />
                   <div className="space-y-2">
                     {focusedRoutine.links.map((link, index) => (
@@ -790,11 +908,14 @@ function App() {
                   <CardDescription>Create, run, edit, and backup routines.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => void onOpenSettingsPage()}>
+                    <SettingsIcon />
+                    Settings
+                  </Button>
                   <Button type="button" size="sm" variant="outline" onClick={() => setView('runner')}>
                     <ArrowLeftIcon />
                     Back to runner
                   </Button>
-                  <ThemeToggle />
                 </div>
               </div>
             </CardHeader>
@@ -896,6 +1017,7 @@ function App() {
                       <Button
                         type="button"
                         size="sm"
+                        variant={settings.defaultRunMode === 'same-tab' ? 'default' : 'outline'}
                         onClick={() => void onStartRoutine(routine, 'same-tab')}
                         disabled={busyAction === `start-${routine.id}-same-tab`}
                       >
@@ -905,7 +1027,7 @@ function App() {
                       <Button
                         type="button"
                         size="sm"
-                        variant="outline"
+                        variant={settings.defaultRunMode === 'tab-group' ? 'default' : 'outline'}
                         onClick={() => void onStartRoutine(routine, 'tab-group')}
                         disabled={busyAction === `start-${routine.id}-tab-group`}
                       >
@@ -955,11 +1077,14 @@ function App() {
                   <CardDescription>Add links and drag to reorder sequence.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => void onOpenSettingsPage()}>
+                    <SettingsIcon />
+                    Settings
+                  </Button>
                   <Button type="button" size="sm" variant="outline" onClick={() => setView('routines')}>
                     <ArrowLeftIcon />
                     Back to routines
                   </Button>
-                  <ThemeToggle />
                 </div>
               </div>
             </CardHeader>
@@ -1074,6 +1199,86 @@ function App() {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {view === 'settings' && (
+        <>
+          <Card size="sm">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle>Settings</CardTitle>
+                  <CardDescription>Configure behavior and theme preferences.</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setView('runner')}>
+                    <ArrowLeftIcon />
+                    Back to runner
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>General</CardTitle>
+              <CardDescription>Core runner behavior across sidepanel, popup, and focus controller.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium">Default run mode</span>
+                <select
+                  className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+                  value={settings.defaultRunMode}
+                  onChange={(event) => void onSetDefaultRunMode(event.target.value)}
+                >
+                  <option value="tab-group">Tab group</option>
+                  <option value="same-tab">Single tab</option>
+                </select>
+              </label>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={settings.confirmBeforeStop}
+                  onChange={(event) => void onSetBooleanSetting('confirmBeforeStop', event.target.checked)}
+                />
+                Confirm before stop actions
+              </label>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={settings.focusModeEnabled}
+                  onChange={(event) => void onSetBooleanSetting('focusModeEnabled', event.target.checked)}
+                />
+                Enable focus mini-controller mode
+              </label>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Appearance</CardTitle>
+              <CardDescription>Choose the extension theme for sidepanel and popup.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium">Theme</span>
+                <select
+                  className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+                  value={settings.staticTheme}
+                  onChange={(event) => void onSetStaticTheme(event.target.value)}
+                >
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </label>
             </CardContent>
           </Card>
         </>

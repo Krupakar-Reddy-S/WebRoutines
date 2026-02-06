@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
+import { SettingsIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { ThemeToggle } from '@/components/theme-toggle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +20,13 @@ import {
   openSidePanelForCurrentWindow,
   stopActiveRoutine,
 } from '@/lib/navigation';
-import { getRunnerState, setFocusedRoutine, subscribeToRunnerState } from '@/lib/session';
+import {
+  getRunnerState,
+  setFocusedRoutine,
+  setRequestedSidepanelView,
+  subscribeToRunnerState,
+} from '@/lib/session';
+import { useSettings } from '@/lib/use-settings';
 import type { RoutineSession } from '@/lib/types';
 
 interface RunnerState {
@@ -29,6 +35,7 @@ interface RunnerState {
 }
 
 function App() {
+  const { settings } = useSettings();
   const [runnerState, setRunnerState] = useState<RunnerState>({ sessions: [], focusedRoutineId: null });
   const [status, setStatus] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -152,7 +159,12 @@ function App() {
     setStatus(null);
 
     try {
-      await openSidePanelForCurrentWindow();
+      const opened = await openSidePanelForCurrentWindow();
+      if (!opened) {
+        setStatus('Unable to open side panel.');
+        return;
+      }
+
       setStatus('Side panel opened.');
       window.close();
     } catch {
@@ -166,6 +178,13 @@ function App() {
     if (!focusedSession) {
       setStatus('No active routine.');
       return;
+    }
+
+    if (settings.confirmBeforeStop) {
+      const shouldStop = window.confirm('Stop this runner and close its runner tabs?');
+      if (!shouldStop) {
+        return;
+      }
     }
 
     setBusyAction('stop');
@@ -197,6 +216,23 @@ function App() {
     setStatus('Switched focused runner.');
   }
 
+  async function onOpenSettingsPage() {
+    setStatus(null);
+
+    try {
+      await setRequestedSidepanelView('settings');
+      const opened = await openSidePanelForCurrentWindow();
+      if (!opened) {
+        setStatus('Unable to open side panel.');
+        return;
+      }
+      setStatus('Opened settings in side panel.');
+      window.close();
+    } catch {
+      setStatus('Unable to open settings.');
+    }
+  }
+
   return (
     <main className="w-80 space-y-2 bg-background p-2 text-foreground">
       <Card size="sm">
@@ -206,7 +242,6 @@ function App() {
               <CardTitle>WebRoutines</CardTitle>
               <CardDescription>Focused runner controls + hotkeys</CardDescription>
             </div>
-            <ThemeToggle />
           </div>
         </CardHeader>
 
@@ -278,6 +313,16 @@ function App() {
             disabled={busyAction === 'open-panel'}
           >
             Open side panel
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => void onOpenSettingsPage()}
+          >
+            <SettingsIcon />
+            Settings
           </Button>
 
           {status && (

@@ -1,7 +1,7 @@
-# Feature List 4: settings + focus mini-controller + adaptive theming MVP
+# Feature List 4: settings + focus mini-controller + theme split
 
 ## Goal
-Introduce a practical settings foundation and a focus mini-controller MVP, while adding safe adaptive accent theming that feels native to the active website without causing unstable full-theme churn.
+Introduce a practical settings foundation and a focus mini-controller MVP with stable theming: static extension theme for sidebar/popup and adaptive styling for the mini controller only.
 
 ## Scope highlights
 1. Settings foundation (options page + shared settings model):
@@ -11,7 +11,7 @@ Introduce a practical settings foundation and a focus mini-controller MVP, while
 
 2. Focus mini-controller MVP (content script):
 - Floating controller pill for focused runner on web pages.
-- Core controls: previous, next, stop, open sidepanel.
+- Core controls: previous, next, open sidebar.
 - Right-edge vertical drag with position persistence.
 - Enable/disable behavior controlled by settings + focus mode state.
 
@@ -20,31 +20,40 @@ Introduce a practical settings foundation and a focus mini-controller MVP, while
 - Reuse existing navigation/session flows to keep behavior consistent.
 - Keep popup/sidepanel/controller synchronized via session state.
 
-4. Adaptive theme MVP (safe mode first):
-- Add `adaptive-accent` mode (not full chameleon).
-- Extract active page color candidates in content script.
-- Cache accent per-domain in session storage for smoother updates.
-- Apply adaptive accent first to popup + mini-controller.
-- Keep sidepanel base theme stable in MVP.
+4. Theme behavior split:
+- Sidebar and popup stay on static extension theme (`system`, `light`, `dark`).
+- Mini controller uses page-adaptive accent style independently.
+- Remove adaptive-accent mode from extension-wide settings to reduce complexity and confusion.
 
-5. Permissions and fallback handling:
-- Request host permissions only when needed for focus mode/controller.
-- Graceful fallback to static UI if permission is denied.
+5. UX hardening and reliability:
+- Move settings access into sidepanel flow.
+- Remove duplicate theme toggle controls outside settings.
+- Harden controller behavior where storage access can fail in content-script context.
+- Add sidepanel open fallback path for controller "Sidebar" action.
 
 ## Out of scope
-- Full chameleon full-palette sidepanel theming.
+- Full adaptive/chameleon theming for sidebar/popup.
 - Complex domain-specific color heuristics and advanced contrast engine.
 - Command palette, scheduling, folders, routine history analytics.
 - Cross-browser parity work and cloud sync.
 
 ## Checklist
 - [x] Define Feature List 4 scope and implementation plan.
-- [ ] Task 1: Add options page and shared settings model/helpers.
-- [ ] Task 2: Implement focus mini-controller content script MVP.
-- [ ] Task 3: Add background/controller action bridge and runtime permission flow.
-- [ ] Task 4: Implement adaptive-accent extraction + domain cache for popup/controller.
-- [ ] Task 5: Integrate settings controls in sidepanel/popup and finalize docs.
-- [ ] Task 6: Validate with compile/build and run UX sanity pass.
+- [x] Task 1: Add options page and shared settings model/helpers.
+- [x] Task 2: Implement focus mini-controller content script MVP.
+- [x] Task 3: Add background/controller action bridge and runtime permission flow.
+- [x] Task 4: Implement adaptive-accent extraction + domain cache for popup/controller.
+- [x] Task 5: Integrate settings controls in sidepanel/popup and finalize docs.
+- [x] Task 6: Validate with compile/build and run UX sanity pass.
+- [x] Task 7: Apply post-implementation UX/stability fixes from testing feedback.
 
 ## Step log
-- 2026-02-06: Created `feature-list-4.md` with settings + focus mini-controller + adaptive-accent MVP scope and task checklist.
+- 2026-02-06: Created `feature-list-4.md` with settings + focus mini-controller scope and task checklist.
+- 2026-02-06: Added settings foundation (`lib/settings.ts`, `lib/use-settings.ts`) and new options page entrypoint under `entrypoints/options/*`.
+- 2026-02-06: Added focus mini-controller content script (`entrypoints/focus-controller.content.ts`) with drag position persistence and runner controls.
+- 2026-02-06: Added background runtime message bridge for controller actions and focus-mode state helpers in session storage.
+- 2026-02-06: Added adaptive-accent cache/utilities (`lib/adaptive-accent.ts`) and mini-controller adaptive accent application.
+- 2026-02-06: Integrated settings-driven behavior into sidepanel/popup (confirm-before-stop, settings access, default run mode emphasis, focus-mode entry flow).
+- 2026-02-06: Simplified theming model to static extension theme + mini-controller-only adaptive styling.
+- 2026-02-06: Fixed controller reliability issues in restricted contexts (`browser.storage` fallback handling, bridge response hardening, sidebar-open fallback).
+- 2026-02-06: Validated Feature 4 implementation with successful `bun run compile` and `bun run build`.

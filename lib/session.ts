@@ -3,17 +3,23 @@ import type { RoutineSession } from '@/lib/types';
 const ACTIVE_SESSIONS_KEY = 'activeSessions';
 const FOCUSED_ROUTINE_ID_KEY = 'focusedRoutineId';
 const LEGACY_ACTIVE_SESSION_KEY = 'activeSession';
+const FOCUS_MODE_ACTIVE_KEY = 'focusModeActive';
+const REQUESTED_SIDEPANEL_VIEW_KEY = 'requestedSidepanelView';
 
 interface SessionStorageRecord {
   [ACTIVE_SESSIONS_KEY]?: RoutineSession[];
   [FOCUSED_ROUTINE_ID_KEY]?: number;
   [LEGACY_ACTIVE_SESSION_KEY]?: RoutineSession;
+  [FOCUS_MODE_ACTIVE_KEY]?: boolean;
+  [REQUESTED_SIDEPANEL_VIEW_KEY]?: SidepanelViewRequest;
 }
 
 export interface RunnerState {
   sessions: RoutineSession[];
   focusedRoutineId: number | null;
 }
+
+export type SidepanelViewRequest = 'runner' | 'routines' | 'editor' | 'settings';
 
 export async function getRunnerState(): Promise<RunnerState> {
   const record = (await browser.storage.session.get([
@@ -87,6 +93,10 @@ export async function removeRoutineSession(routineId: number): Promise<boolean> 
     focusedRoutineId: state.focusedRoutineId,
   });
 
+  if (sessions.length === 0) {
+    await setFocusModeActive(false);
+  }
+
   return true;
 }
 
@@ -95,6 +105,8 @@ export async function clearAllRoutineSessions(): Promise<void> {
     sessions: [],
     focusedRoutineId: null,
   });
+
+  await setFocusModeActive(false);
 }
 
 export async function setFocusedRoutine(routineId: number | null): Promise<void> {
@@ -118,6 +130,86 @@ export async function handleRunnerGroupRemoved(groupId: number): Promise<void> {
     sessions,
     focusedRoutineId: state.focusedRoutineId,
   });
+
+  if (sessions.length === 0) {
+    await setFocusModeActive(false);
+  }
+}
+
+export async function getFocusModeActive(): Promise<boolean> {
+  const record = (await browser.storage.session.get(FOCUS_MODE_ACTIVE_KEY)) as SessionStorageRecord;
+  return record[FOCUS_MODE_ACTIVE_KEY] ?? false;
+}
+
+export async function setFocusModeActive(active: boolean): Promise<void> {
+  await browser.storage.session.set({
+    [FOCUS_MODE_ACTIVE_KEY]: active,
+  });
+}
+
+export function subscribeToFocusModeActive(callback: (active: boolean) => void): () => void {
+  const listener: Parameters<typeof browser.storage.onChanged.addListener>[0] = (changes, areaName) => {
+    if (areaName !== 'session' || !(FOCUS_MODE_ACTIVE_KEY in changes)) {
+      return;
+    }
+
+    const nextValue = changes[FOCUS_MODE_ACTIVE_KEY]?.newValue;
+    callback(typeof nextValue === 'boolean' ? nextValue : false);
+  };
+
+  browser.storage.onChanged.addListener(listener);
+
+  return () => {
+    browser.storage.onChanged.removeListener(listener);
+  };
+}
+
+export async function setRequestedSidepanelView(view: SidepanelViewRequest | null): Promise<void> {
+  if (view === null) {
+    await browser.storage.session.remove(REQUESTED_SIDEPANEL_VIEW_KEY);
+    return;
+  }
+
+  await browser.storage.session.set({
+    [REQUESTED_SIDEPANEL_VIEW_KEY]: view,
+  });
+}
+
+export async function consumeRequestedSidepanelView(): Promise<SidepanelViewRequest | null> {
+  const record = (await browser.storage.session.get(REQUESTED_SIDEPANEL_VIEW_KEY)) as SessionStorageRecord;
+  const raw = record[REQUESTED_SIDEPANEL_VIEW_KEY];
+
+  if (!isSidepanelViewRequest(raw)) {
+    await browser.storage.session.remove(REQUESTED_SIDEPANEL_VIEW_KEY);
+    return null;
+  }
+
+  await browser.storage.session.remove(REQUESTED_SIDEPANEL_VIEW_KEY);
+  return raw;
+}
+
+export function subscribeToRequestedSidepanelView(
+  callback: (view: SidepanelViewRequest) => void,
+): () => void {
+  const listener: Parameters<typeof browser.storage.onChanged.addListener>[0] = (changes, areaName) => {
+    if (areaName !== 'session' || !(REQUESTED_SIDEPANEL_VIEW_KEY in changes)) {
+      return;
+    }
+
+    const next = changes[REQUESTED_SIDEPANEL_VIEW_KEY]?.newValue;
+    if (!isSidepanelViewRequest(next)) {
+      return;
+    }
+
+    callback(next);
+    void browser.storage.session.remove(REQUESTED_SIDEPANEL_VIEW_KEY);
+  };
+
+  browser.storage.onChanged.addListener(listener);
+
+  return () => {
+    browser.storage.onChanged.removeListener(listener);
+  };
 }
 
 export function subscribeToRunnerState(callback: (state: RunnerState) => void): () => void {
@@ -271,4 +363,8 @@ async function persistRunnerState(state: RunnerState): Promise<void> {
     [ACTIVE_SESSIONS_KEY]: state.sessions,
     [FOCUSED_ROUTINE_ID_KEY]: state.focusedRoutineId,
   });
+}
+
+function isSidepanelViewRequest(value: unknown): value is SidepanelViewRequest {
+  return value === 'runner' || value === 'routines' || value === 'editor' || value === 'settings';
 }
