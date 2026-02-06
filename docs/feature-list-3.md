@@ -41,3 +41,15 @@ Ship low-complexity UI/UX improvements that make routine running and management 
 - 2026-02-06: Added bulk URL paste in the editor and improved drag/drop reorder feedback with clear target highlighting.
 - 2026-02-06: Added transient status auto-clear and improved live-region accessibility semantics for sidepanel and popup feedback.
 - 2026-02-06: Finalized Feature 3 docs and validated with successful `bun run compile` and `bun run build`.
+
+## Chore follow-ups (post Feature 3)
+- [x] Keep routine import as global action, but move export to per-routine action.
+- [x] Remove separate bulk-link input and support multi-link paste directly in the main link input.
+- [x] Support comma-separated and line-separated URL paste in the main link input.
+- [x] Show parsed-link count in the add button label (for pasted multi-link input).
+- [x] Add in-sidebar confirmation UI before removing a draft routine link.
+
+### Chore notes
+- 2026-02-06: Export is now routine-scoped from each routine card; import remains a global routines action.
+- 2026-02-06: Editor link input now accepts single or multiple links in one field and displays detected add-count.
+- 2026-02-06: Added inline confirmation panel in editor before removing a link via the `X` action.

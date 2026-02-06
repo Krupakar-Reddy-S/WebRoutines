@@ -31,7 +31,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
 import { db } from '@/lib/db';
 import {
   navigateSessionByOffset,
@@ -47,7 +46,6 @@ import {
   deleteRoutine,
   listRoutines,
   normalizeRoutineUrl,
-  parseLinksFromText,
   parseRoutineBackup,
   updateRoutine,
 } from '@/lib/routines';
@@ -77,7 +75,7 @@ function App() {
   const [editingRoutineId, setEditingRoutineId] = useState<number | null>(null);
   const [draggingLinkId, setDraggingLinkId] = useState<string | null>(null);
   const [dropTargetLinkId, setDropTargetLinkId] = useState<string | null>(null);
-  const [bulkLinkInput, setBulkLinkInput] = useState('');
+  const [confirmLinkRemovalId, setConfirmLinkRemovalId] = useState<string | null>(null);
   const [routineSearchQuery, setRoutineSearchQuery] = useState('');
   const [expandedRoutineIds, setExpandedRoutineIds] = useState<number[]>([]);
 
@@ -158,6 +156,16 @@ function App() {
     return routines.filter((routine) => routine.name.toLowerCase().includes(query));
   }, [routineSearchQuery, routines]);
 
+  const parsedDraftInputUrls = useMemo(
+    () => parseDraftInputUrls(newLinkInput),
+    [newLinkInput],
+  );
+
+  const pendingDraftRemovalLink = useMemo(
+    () => draftLinks.find((link) => link.id === confirmLinkRemovalId) ?? null,
+    [confirmLinkRemovalId, draftLinks],
+  );
+
   useEffect(() => {
     void getRunnerState().then(setRunnerState);
     const unsubscribe = subscribeToRunnerState(setRunnerState);
@@ -192,6 +200,18 @@ function App() {
   }, [message]);
 
   useEffect(() => {
+    if (!confirmLinkRemovalId) {
+      return;
+    }
+
+    if (draftLinks.some((link) => link.id === confirmLinkRemovalId)) {
+      return;
+    }
+
+    setConfirmLinkRemovalId(null);
+  }, [confirmLinkRemovalId, draftLinks]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (isTextInputTarget(event.target)) {
         return;
@@ -224,7 +244,7 @@ function App() {
     setNewLinkInput('');
     setDraggingLinkId(null);
     setDropTargetLinkId(null);
-    setBulkLinkInput('');
+    setConfirmLinkRemovalId(null);
     setError(null);
     setMessage(null);
     setView('editor');
@@ -270,48 +290,33 @@ function App() {
     setError(null);
     setMessage(null);
 
-    const normalizedUrl = normalizeRoutineUrl(newLinkInput);
-
-    if (!normalizedUrl) {
-      setError('Enter a valid http/https URL to add link.');
-      return;
-    }
-
-    if (draftLinks.some((link) => link.url === normalizedUrl)) {
-      setError('This link already exists in the routine.');
-      return;
-    }
-
-    setDraftLinks((previous) => [...previous, createRoutineLink(normalizedUrl)]);
-    setNewLinkInput('');
-  }
-
-  function onRemoveDraftLink(linkId: string) {
-    setDraftLinks((previous) => previous.filter((link) => link.id !== linkId));
-  }
-
-  function onAddBulkLinks() {
-    setError(null);
-    setMessage(null);
-
-    const parsedLinks = parseLinksFromText(bulkLinkInput);
-
-    if (parsedLinks.length === 0) {
-      setError('Paste at least one valid http/https URL (one per line).');
+    if (parsedDraftInputUrls.length === 0) {
+      setError('Enter valid http/https URLs (comma-separated or one per line).');
       return;
     }
 
     const existingUrls = new Set(draftLinks.map((link) => link.url));
-    const linksToAdd = parsedLinks.filter((link) => !existingUrls.has(link.url));
+    const urlsToAdd = parsedDraftInputUrls.filter((url) => !existingUrls.has(url));
 
-    if (linksToAdd.length === 0) {
-      setError('All pasted links already exist in this routine.');
+    if (urlsToAdd.length === 0) {
+      setError('All provided links already exist in this routine.');
       return;
     }
 
-    setDraftLinks((previous) => [...previous, ...linksToAdd]);
-    setBulkLinkInput('');
-    setMessage(`Added ${linksToAdd.length} link${linksToAdd.length === 1 ? '' : 's'} from pasted list.`);
+    setDraftLinks((previous) => [...previous, ...urlsToAdd.map((url) => createRoutineLink(url))]);
+    setNewLinkInput('');
+    const skippedCount = parsedDraftInputUrls.length - urlsToAdd.length;
+    setMessage(
+      skippedCount > 0
+        ? `Added ${urlsToAdd.length} link${urlsToAdd.length === 1 ? '' : 's'} (${skippedCount} duplicates skipped).`
+        : `Added ${urlsToAdd.length} link${urlsToAdd.length === 1 ? '' : 's'}.`,
+    );
+  }
+
+  function onConfirmRemoveDraftLink(linkId: string) {
+    setDraftLinks((previous) => previous.filter((link) => link.id !== linkId));
+    setConfirmLinkRemovalId(null);
+    setMessage('Link removed from routine draft.');
   }
 
   function onDragStartLink(event: DragEvent<HTMLDivElement>, linkId: string) {
@@ -525,35 +530,33 @@ function App() {
     }
   }
 
-  async function onExportBackup() {
-    setBusyAction('export-backup');
+  async function onExportRoutine(routine: Routine) {
+    if (!routine.id) {
+      return;
+    }
+
+    setBusyAction(`export-routine-${routine.id}`);
     setError(null);
     setMessage(null);
 
     try {
-      const allRoutines = await listRoutines();
-
-      if (allRoutines.length === 0) {
-        setError('No routines available to export.');
-        return;
-      }
-
-      const payload = createRoutineBackupPayload(allRoutines);
+      const payload = createRoutineBackupPayload([routine]);
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const routineSlug = toFileSlug(routine.name);
 
       anchor.href = url;
-      anchor.download = `webroutines-backup-${timestamp}.json`;
+      anchor.download = `webroutine-${routineSlug || routine.id}-${timestamp}.json`;
       document.body.append(anchor);
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
 
-      setMessage(`Exported ${allRoutines.length} routine${allRoutines.length === 1 ? '' : 's'}.`);
+      setMessage(`Exported "${routine.name}" as JSON.`);
     } catch (exportError) {
-      setError(toErrorMessage(exportError, 'Failed to export routines.'));
+      setError(toErrorMessage(exportError, 'Failed to export routine JSON.'));
     } finally {
       setBusyAction(null);
     }
@@ -598,7 +601,7 @@ function App() {
     setEditingRoutineId(null);
     setDraggingLinkId(null);
     setDropTargetLinkId(null);
-    setBulkLinkInput('');
+    setConfirmLinkRemovalId(null);
   }
 
   return (
@@ -808,16 +811,6 @@ function App() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => void onExportBackup()}
-                  disabled={busyAction === 'export-backup'}
-                >
-                  <DownloadIcon />
-                  Export JSON
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
                   onClick={triggerImportDialog}
                   disabled={busyAction === 'import-backup'}
                 >
@@ -899,7 +892,7 @@ function App() {
                         </Button>
                       )}
                     </CardContent>
-                    <CardFooter className="grid grid-cols-2 gap-2">
+                    <CardFooter className="flex flex-wrap gap-2">
                       <Button
                         type="button"
                         size="sm"
@@ -921,6 +914,17 @@ function App() {
 
                       <Button type="button" size="sm" variant="outline" onClick={() => onEditRoutine(routine)}>
                         Edit
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void onExportRoutine(routine)}
+                        disabled={busyAction === `export-routine-${routine.id}`}
+                      >
+                        <DownloadIcon />
+                        Export JSON
                       </Button>
 
                       <Button
@@ -982,26 +986,16 @@ function App() {
                       id="routine-link"
                       value={newLinkInput}
                       onChange={(event) => setNewLinkInput(event.target.value)}
-                      placeholder="https://example.com/blog"
+                      placeholder="https://example.com/blog, https://news.ycombinator.com"
                     />
                     <Button type="button" variant="outline" onClick={onAddDraftLink}>
                       <PlusIcon />
-                      Add
+                      {parsedDraftInputUrls.length > 0 ? `Add (${parsedDraftInputUrls.length})` : 'Add'}
                     </Button>
                   </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="routine-link-bulk">Bulk add links</Label>
-                  <Textarea
-                    id="routine-link-bulk"
-                    value={bulkLinkInput}
-                    onChange={(event) => setBulkLinkInput(event.target.value)}
-                    placeholder={'https://news.ycombinator.com\nhttps://github.com/trending'}
-                  />
-                  <Button type="button" size="sm" variant="outline" onClick={onAddBulkLinks}>
-                    Add pasted links
-                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Paste one or more URLs here. Supported formats: comma-separated or one URL per line.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -1036,13 +1030,38 @@ function App() {
                         type="button"
                         size="icon-xs"
                         variant="outline"
-                        onClick={() => onRemoveDraftLink(link.id)}
+                        onClick={() => setConfirmLinkRemovalId(link.id)}
                         aria-label="Remove link"
                       >
                         <XIcon />
                       </Button>
                     </div>
                   ))}
+
+                  {pendingDraftRemovalLink && (
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2">
+                      <p className="text-xs font-medium text-destructive">Remove this link from the routine?</p>
+                      <p className="mt-1 break-all text-xs text-muted-foreground">{pendingDraftRemovalLink.url}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="destructive"
+                          onClick={() => onConfirmRemoveDraftLink(pendingDraftRemovalLink.id)}
+                        >
+                          Remove link
+                        </Button>
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="outline"
+                          onClick={() => setConfirmLinkRemovalId(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -1107,6 +1126,36 @@ function formatElapsed(startedAt: number, now: number): string {
   }
 
   return `${hours}h ${minutes}m`;
+}
+
+function parseDraftInputUrls(rawInput: string): string[] {
+  const segments = rawInput
+    .split(/[\n,]/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  const dedupe = new Set<string>();
+  const urls: string[] = [];
+
+  for (const segment of segments) {
+    const normalizedUrl = normalizeRoutineUrl(segment);
+    if (!normalizedUrl || dedupe.has(normalizedUrl)) {
+      continue;
+    }
+
+    dedupe.add(normalizedUrl);
+    urls.push(normalizedUrl);
+  }
+
+  return urls;
+}
+
+function toFileSlug(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function isTextInputTarget(target: EventTarget | null): boolean {
