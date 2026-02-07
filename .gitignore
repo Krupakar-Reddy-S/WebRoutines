@@ -16,6 +16,12 @@ web-ext.config.ts
 test-results
 playwright-report
 
+# Claude Code
+.claude/
+
+# Old static site backup
+site-backup/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

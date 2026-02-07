@@ -1,0 +1,53 @@
+---
+import '@/styles/global.css';
+import Nav from '@/components/Nav.astro';
+import Footer from '@/components/Footer.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  activePage: 'home' | 'docs' | 'privacy';
+}
+
+const {
+  title,
+  description = 'WebRoutines — run your daily browsing on autopilot.',
+  ogTitle,
+  ogDescription,
+  ogImage = '/og-placeholder.svg',
+  activePage,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={ogTitle || title} />
+    <meta property="og:description" content={ogDescription || description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={ogImage} />
+    <link rel="icon" href="/icon-placeholder-128.svg" type="image/svg+xml" />
+    <script is:inline>
+      (function(){var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t)})();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=DM+Sans:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-base font-body text-fg flex min-h-screen flex-col antialiased">
+    <div class="pointer-events-none fixed inset-x-0 top-0 h-[500px] bg-[radial-gradient(ellipse_60%_50%_at_50%_-10%,rgba(52,211,153,0.08),transparent)]"></div>
+
+    <Nav activePage={activePage} />
+
+    <slot />
+
+    <Footer />
+  </body>
+</html>
