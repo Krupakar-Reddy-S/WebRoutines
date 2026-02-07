@@ -30,16 +30,17 @@ Planned work:
 - [x] Convert routine import to batched transactional writes with progress-safe error handling.
 - [x] Validate with `bun run lint`, `bun run compile`, and `bun run build`.
 
-### Phase B (pending): Original Plan Phase 3
+### Phase B (completed): Original Plan Phase 3
 Scope:
-1. Add automated unit/component/e2e tests and CI gates.
+1. Add automated unit/component/e2e tests for local development workflows.
 
 Planned work:
-- [ ] Add Vitest unit test setup.
-- [ ] Add React Testing Library component tests.
-- [ ] Add Playwright extension e2e setup (persistent Chromium context).
-- [ ] Add deterministic extension id strategy for e2e-only builds.
-- [ ] Add CI workflow gates: lint, compile, test:unit, test:component, build, test:e2e.
+- [x] Add Vitest unit test setup.
+- [x] Add React Testing Library component tests.
+- [x] Add Playwright extension e2e setup (persistent Chromium context).
+- [x] Add deterministic extension id strategy for e2e-only builds.
+- [x] Add local test scripts: `test`, `test:unit`, `test:component`, `test:e2e`, `test:watch`.
+- [x] Defer CI workflow gates until publish hardening phase.
 
 ### Phase C (pending): Docs Cleanup (Original Plan Phase 1 docs item only)
 Scope:
@@ -59,3 +60,5 @@ Planned work:
 - 2026-02-07: Completed Phase A modularity extraction (focused runner resolver, shared settings sections, editor/history/focus-controller modular splits).
 - 2026-02-07: Completed Phase A data-path hardening (indexed history pagination query path, Dexie v3 index update, transactional batched routine import).
 - 2026-02-07: Revalidated Phase A with successful `bun run lint`, `bun run compile`, and `bun run build`.
+- 2026-02-07: Started Phase B local testing setup (Vitest unit/component + Playwright e2e scaffold; CI explicitly deferred).
+- 2026-02-07: Completed Phase B local test stack with passing `bun run lint`, `bun run compile`, `bun run test`, and `bun run test:e2e`.
