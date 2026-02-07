@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  --color-base: var(--c-base);
+  --color-surface: var(--c-surface);
+  --color-surface-raised: var(--c-surface-raised);
+  --color-surface-border: var(--c-surface-border);
+  --color-accent: var(--c-accent);
+  --color-accent-dim: var(--c-accent-dim);
+  --color-accent-glow: var(--c-accent-glow);
+  --color-fg: var(--c-fg);
+  --color-fg-muted: var(--c-fg-muted);
+  --color-fg-faint: var(--c-fg-faint);
+
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Dark theme (default) */
+:root {
+  --c-base: #050506;
+  --c-surface: #111113;
+  --c-surface-raised: #1a1a1d;
+  --c-surface-border: #2a2a2e;
+  --c-accent: #34d399;
+  --c-accent-dim: #059669;
+  --c-accent-glow: rgba(52,211,153,0.08);
+  --c-fg: #ededef;
+  --c-fg-muted: #8b8b8e;
+  --c-fg-faint: #5a5a5d;
+}
+
+/* Light theme */
+:root[data-theme="light"] {
+  --c-base: #f8f8fa;
+  --c-surface: #ffffff;
+  --c-surface-raised: #ededef;
+  --c-surface-border: #d4d4d8;
+  --c-accent: #059669;
+  --c-accent-dim: #34d399;
+  --c-accent-glow: rgba(5,150,105,0.06);
+  --c-fg: #111113;
+  --c-fg-muted: #52525a;
+  --c-fg-faint: #8b8b8e;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.anim-1 { animation: fade-up 0.5s ease-out both; }
+.anim-2 { animation: fade-up 0.5s ease-out 0.08s both; }
+.anim-3 { animation: fade-up 0.5s ease-out 0.16s both; }
+.anim-4 { animation: fade-up 0.5s ease-out 0.24s both; }
+
+.feat-card { transition: border-color 0.2s, background-color 0.2s; }
+.feat-card:hover { border-color: var(--c-accent); background-color: var(--c-accent-glow); }
+
+/* Scrollbar */
+html { scrollbar-color: var(--c-surface-border) var(--c-surface); }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--c-surface-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-fg-faint); }
+
+/* Docs page */
+.doc-section h3 { scroll-margin-top: 5rem; }
+.nav-link { transition: color 0.15s, background-color 0.15s; }
+.nav-link.active { color: var(--c-accent); background-color: var(--c-accent-glow); }
