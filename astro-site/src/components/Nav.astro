@@ -4,18 +4,19 @@ interface Props {
 }
 
 const { activePage } = Astro.props;
+const base = import.meta.env.BASE_URL;
 
 const navLinks = [
-  { id: 'home', label: 'Home', href: '/' },
-  { id: 'docs', label: 'Docs', href: '/docs/' },
-  { id: 'privacy', label: 'Privacy', href: '/privacy/' },
+  { id: 'home', label: 'Home', href: `${base}` },
+  { id: 'docs', label: 'Docs', href: `${base}docs/` },
+  { id: 'privacy', label: 'Privacy', href: `${base}privacy/` },
 ];
 ---
 
 <header class="sticky top-0 z-20 border-b border-surface-border bg-base/80 backdrop-blur-sm">
   <div class="mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 py-4">
-    <a href="/" class="flex items-center gap-2.5 font-display text-base font-semibold tracking-tight text-fg">
-      <img src="/icon-placeholder-128.svg" alt="" class="h-7 w-7" />
+    <a href={base} class="flex items-center gap-2.5 font-display text-base font-semibold tracking-tight text-fg">
+      <img src={`${base}icon-placeholder-128.svg`} alt="" class="h-7 w-7" />
       WebRoutines
     </a>
     <nav class="flex items-center gap-1 text-sm">
