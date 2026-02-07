@@ -2,6 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { HistoryIcon, SettingsIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { getFocusedSession as getFocusedSessionFromState } from '@/core/runner/focus';
+import { StopRunnerDialog } from '@/components/StopRunnerDialog';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -27,6 +29,7 @@ import {
   subscribeToRunnerState,
 } from '@/lib/session';
 import { useSettings } from '@/lib/use-settings';
+import { formatElapsed } from '@/lib/time';
 import type { Routine, RoutineSession } from '@/lib/types';
 
 import { ActiveRunnerCard } from '../components/ActiveRunnerCard';
@@ -58,21 +61,12 @@ export function RunnerHomeView({
   const [runnerState, setRunnerState] = useState<RunnerState>({ sessions: [], focusedRoutineId: null });
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
+  const [stopDialogRoutineId, setStopDialogRoutineId] = useState<number | null>(null);
 
-  const focusedSession = useMemo(() => {
-    if (runnerState.sessions.length === 0) {
-      return null;
-    }
-
-    if (typeof runnerState.focusedRoutineId === 'number') {
-      const focused = runnerState.sessions.find((session) => session.routineId === runnerState.focusedRoutineId);
-      if (focused) {
-        return focused;
-      }
-    }
-
-    return runnerState.sessions[0] ?? null;
-  }, [runnerState.focusedRoutineId, runnerState.sessions]);
+  const focusedSession = useMemo(
+    () => getFocusedSessionFromState(runnerState.sessions, runnerState.focusedRoutineId),
+    [runnerState.focusedRoutineId, runnerState.sessions],
+  );
 
   const activeRunnerRowsKey = useMemo(
     () => runnerState.sessions.map((session) => `${session.routineId}:${session.currentIndex}:${session.loadMode}`).join('|'),
@@ -114,6 +108,36 @@ export function RunnerHomeView({
 
     return focusedRoutine.links[focusedSession.currentIndex] ?? null;
   }, [focusedRoutine, focusedSession]);
+
+  const routineById = useMemo(() => {
+    const pairs = (activeRunnerRows ?? []).map(({ session, routine }) => [session.routineId, routine] as const);
+    return new Map<number, Routine | null>(pairs);
+  }, [activeRunnerRows]);
+
+  const stopDialogSession = useMemo(() => {
+    if (typeof stopDialogRoutineId !== 'number') {
+      return null;
+    }
+
+    return runnerState.sessions.find((session) => session.routineId === stopDialogRoutineId) ?? null;
+  }, [runnerState.sessions, stopDialogRoutineId]);
+
+  const stopDialogRoutine = useMemo(() => {
+    if (typeof stopDialogRoutineId !== 'number') {
+      return null;
+    }
+
+    const matched = routineById.get(stopDialogRoutineId);
+    if (matched !== undefined) {
+      return matched;
+    }
+
+    if (focusedRoutine && focusedSession?.routineId === stopDialogRoutineId) {
+      return focusedRoutine;
+    }
+
+    return null;
+  }, [focusedRoutine, focusedSession?.routineId, routineById, stopDialogRoutineId]);
 
   useEffect(() => {
     void getRunnerState().then(setRunnerState);
@@ -207,6 +231,22 @@ export function RunnerHomeView({
     }
   }
 
+  async function executeStopRoutine(targetRoutineId: number) {
+    setBusyAction(`stop-${targetRoutineId}`);
+    onError(null);
+    onMessage(null);
+
+    try {
+      const stopped = await stopActiveRoutine(targetRoutineId);
+      onMessage(stopped ? 'Runner stopped and group tabs closed.' : 'No active runner found.');
+      setStopDialogRoutineId(null);
+    } catch (stopError) {
+      onError(toErrorMessage(stopError, 'Failed to stop routine.'));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function onStopRoutine(routineId?: number) {
     const targetRoutineId = routineId ?? focusedSession?.routineId;
 
@@ -216,24 +256,11 @@ export function RunnerHomeView({
     }
 
     if (settings.confirmBeforeStop) {
-      const shouldStop = window.confirm('Stop this runner and close its runner tabs?');
-      if (!shouldStop) {
-        return;
-      }
+      setStopDialogRoutineId(targetRoutineId);
+      return;
     }
 
-    setBusyAction(`stop-${targetRoutineId}`);
-    onError(null);
-    onMessage(null);
-
-    try {
-      const stopped = await stopActiveRoutine(targetRoutineId);
-      onMessage(stopped ? 'Runner stopped and group tabs closed.' : 'No active runner found.');
-    } catch (stopError) {
-      onError(toErrorMessage(stopError, 'Failed to stop routine.'));
-    } finally {
-      setBusyAction(null);
-    }
+    await executeStopRoutine(targetRoutineId);
   }
 
   async function onEnterFocusMode() {
@@ -417,6 +444,39 @@ export function RunnerHomeView({
           )}
         </CardContent>
       </Card>
+
+      <StopRunnerDialog
+        open={stopDialogSession !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setStopDialogRoutineId(null);
+          }
+        }}
+        busy={typeof stopDialogRoutineId === 'number' && busyAction === `stop-${stopDialogRoutineId}`}
+        routineLabel={stopDialogRoutine?.name ?? (
+          stopDialogSession ? `Routine #${stopDialogSession.routineId}` : 'Unknown routine'
+        )}
+        stepLabel={(() => {
+          if (!stopDialogSession) {
+            return 'N/A';
+          }
+
+          const totalSteps = stopDialogRoutine?.links.length ?? 0;
+          if (totalSteps <= 0) {
+            return `${stopDialogSession.currentIndex + 1}`;
+          }
+
+          return `${Math.min(stopDialogSession.currentIndex + 1, totalSteps)}/${totalSteps}`;
+        })()}
+        elapsedLabel={stopDialogSession ? formatElapsed(stopDialogSession.startedAt, clockNow) : 'N/A'}
+        onConfirm={() => {
+          if (typeof stopDialogRoutineId !== 'number') {
+            return;
+          }
+
+          void executeStopRoutine(stopDialogRoutineId);
+        }}
+      />
     </>
   );
 }

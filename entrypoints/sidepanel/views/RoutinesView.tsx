@@ -21,9 +21,9 @@ import {
 } from '@/components/ui/dialog';
 import { startRoutine, stopActiveRoutine } from '@/lib/navigation';
 import {
-  createRoutine,
   createRoutineBackupPayload,
   deleteRoutine,
+  importRoutines,
   listRoutines,
   parseRoutineBackup,
 } from '@/lib/routines';
@@ -243,12 +243,8 @@ export function RoutinesView({
     try {
       const rawText = await file.text();
       const routinesToImport = parseRoutineBackup(rawText);
-
-      for (const routineInput of routinesToImport) {
-        await createRoutine(routineInput);
-      }
-
-      onMessage(`Imported ${routinesToImport.length} routine${routinesToImport.length === 1 ? '' : 's'}.`);
+      const importedCount = await importRoutines(routinesToImport);
+      onMessage(`Imported ${importedCount} routine${importedCount === 1 ? '' : 's'}.`);
     } catch (importError) {
       onError(toErrorMessage(importError, 'Failed to import backup JSON.'));
     } finally {

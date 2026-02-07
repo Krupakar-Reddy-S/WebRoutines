@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   staticTheme: 'system',
   tabLoadMode: 'eager',
   confirmBeforeStop: true,
-  focusModeEnabled: false,
+  focusModeEnabled: true,
 };
 
 export async function getSettings(): Promise<AppSettings> {
@@ -87,8 +87,12 @@ function normalizeSettings(value: PartialSettings | undefined): AppSettings {
   return {
     staticTheme,
     tabLoadMode,
-    confirmBeforeStop: value?.confirmBeforeStop ?? DEFAULT_SETTINGS.confirmBeforeStop,
-    focusModeEnabled: value?.focusModeEnabled ?? DEFAULT_SETTINGS.focusModeEnabled,
+    confirmBeforeStop: typeof value?.confirmBeforeStop === 'boolean'
+      ? value.confirmBeforeStop
+      : DEFAULT_SETTINGS.confirmBeforeStop,
+    focusModeEnabled: typeof value?.focusModeEnabled === 'boolean'
+      ? value.focusModeEnabled
+      : DEFAULT_SETTINGS.focusModeEnabled,
   };
 }
 

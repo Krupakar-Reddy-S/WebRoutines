@@ -19,6 +19,12 @@ class WebRoutinesDb extends Dexie {
       runs: '++id,routineId,startedAt,stoppedAt',
       runEvents: '++id,runId,routineId,timestamp,type',
     });
+
+    this.version(3).stores({
+      routines: '++id,name,lastRunAt,createdAt,updatedAt',
+      runs: '++id,routineId,startedAt,stoppedAt,completedFull,[routineId+startedAt]',
+      runEvents: '++id,runId,routineId,timestamp,type',
+    });
   }
 }
 

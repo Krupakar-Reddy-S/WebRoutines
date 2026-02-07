@@ -227,8 +227,8 @@ async function destroyRoutineSession(session: RoutineSession, stopReason: RunSto
     }
   }
 
-  await closeRunnerTabs(session);
   await removeRoutineSession(session.routineId);
+  await closeRunnerTabs(session);
 }
 
 async function closeRunnerTabs(session: RoutineSession): Promise<void> {

@@ -1,4 +1,8 @@
 import type { RoutineSession } from '@/lib/types';
+import {
+  getFocusedSession as getFocusedSessionFromState,
+  resolveFocusedRoutineId,
+} from '@/core/runner/focus';
 
 const ACTIVE_SESSIONS_KEY = 'activeSessions';
 const FOCUSED_ROUTINE_ID_KEY = 'focusedRoutineId';
@@ -258,7 +262,7 @@ export function subscribeToRunnerState(callback: (state: RunnerState) => void): 
 // Compatibility layer for existing single-runner callsites.
 export async function getActiveSession(): Promise<RoutineSession | null> {
   const state = await getRunnerState();
-  return getFocusedSession(state);
+  return getFocusedSessionFromState(state.sessions, state.focusedRoutineId);
 }
 
 // Compatibility layer for existing single-runner callsites.
@@ -269,7 +273,7 @@ export async function setActiveSession(session: RoutineSession): Promise<void> {
 // Compatibility layer for existing single-runner callsites.
 export async function clearActiveSession(): Promise<void> {
   const state = await getRunnerState();
-  const focusedSession = getFocusedSession(state);
+  const focusedSession = getFocusedSessionFromState(state.sessions, state.focusedRoutineId);
 
   if (focusedSession) {
     await removeRoutineSession(focusedSession.routineId);
@@ -281,41 +285,8 @@ export function subscribeToActiveSession(
   callback: (session: RoutineSession | null) => void,
 ): () => void {
   return subscribeToRunnerState((state) => {
-    callback(getFocusedSession(state));
+    callback(getFocusedSessionFromState(state.sessions, state.focusedRoutineId));
   });
-}
-
-function getFocusedSession(state: RunnerState): RoutineSession | null {
-  if (state.sessions.length === 0) {
-    return null;
-  }
-
-  if (typeof state.focusedRoutineId === 'number') {
-    const focused = state.sessions.find((session) => session.routineId === state.focusedRoutineId);
-    if (focused) {
-      return focused;
-    }
-  }
-
-  return state.sessions[0] ?? null;
-}
-
-function resolveFocusedRoutineId(
-  sessions: RoutineSession[],
-  focusedRoutineId: number | null | undefined,
-): number | null {
-  if (sessions.length === 0) {
-    return null;
-  }
-
-  if (
-    typeof focusedRoutineId === 'number'
-    && sessions.some((session) => session.routineId === focusedRoutineId)
-  ) {
-    return focusedRoutineId;
-  }
-
-  return sessions[0].routineId;
 }
 
 function normalizeSessions(value: RoutineSession[] | undefined): RoutineSession[] {

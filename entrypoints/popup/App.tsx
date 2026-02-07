@@ -2,6 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { HistoryIcon, SettingsIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { getFocusedSession as getFocusedSessionFromState } from '@/core/runner/focus';
+import { StopRunnerDialog } from '@/components/StopRunnerDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,21 +45,12 @@ function App() {
   const [status, setStatus] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
+  const [stopDialogOpen, setStopDialogOpen] = useState(false);
 
-  const focusedSession = useMemo(() => {
-    if (runnerState.sessions.length === 0) {
-      return null;
-    }
-
-    if (typeof runnerState.focusedRoutineId === 'number') {
-      const focused = runnerState.sessions.find((session) => session.routineId === runnerState.focusedRoutineId);
-      if (focused) {
-        return focused;
-      }
-    }
-
-    return runnerState.sessions[0] ?? null;
-  }, [runnerState.focusedRoutineId, runnerState.sessions]);
+  const focusedSession = useMemo(
+    () => getFocusedSessionFromState(runnerState.sessions, runnerState.focusedRoutineId),
+    [runnerState.focusedRoutineId, runnerState.sessions],
+  );
 
   const routine = useLiveQuery(
     async () => {
@@ -124,6 +117,12 @@ function App() {
     return () => window.clearTimeout(timeoutId);
   }, [status]);
 
+  useEffect(() => {
+    if (!focusedSession) {
+      setStopDialogOpen(false);
+    }
+  }, [focusedSession]);
+
   const hasActiveSession = Boolean(focusedSession && routine);
 
   async function onOpenCurrent() {
@@ -165,17 +164,10 @@ function App() {
     }
   }
 
-  async function onStopRoutine() {
+  async function executeStopRoutine() {
     if (!focusedSession) {
       setStatus('No active routine.');
       return;
-    }
-
-    if (settings.confirmBeforeStop) {
-      const shouldStop = window.confirm('Stop this runner and close its runner tabs?');
-      if (!shouldStop) {
-        return;
-      }
     }
 
     setBusyAction('stop');
@@ -184,11 +176,26 @@ function App() {
     try {
       const stopped = await stopActiveRoutine(focusedSession.routineId);
       setStatus(stopped ? 'Runner stopped.' : 'No active routine.');
+      setStopDialogOpen(false);
     } catch {
       setStatus('Unable to stop routine.');
     } finally {
       setBusyAction(null);
     }
+  }
+
+  async function onStopRoutine() {
+    if (!focusedSession) {
+      setStatus('No active routine.');
+      return;
+    }
+
+    if (settings.confirmBeforeStop) {
+      setStopDialogOpen(true);
+      return;
+    }
+
+    await executeStopRoutine();
   }
 
   async function onFocusNextRunner() {
@@ -355,6 +362,29 @@ function App() {
           )}
         </CardFooter>
       </Card>
+
+      <StopRunnerDialog
+        open={stopDialogOpen && Boolean(focusedSession)}
+        onOpenChange={setStopDialogOpen}
+        busy={busyAction === 'stop'}
+        routineLabel={routine?.name ?? (focusedSession ? `Routine #${focusedSession.routineId}` : 'Unknown routine')}
+        stepLabel={(() => {
+          if (!focusedSession) {
+            return 'N/A';
+          }
+
+          const totalSteps = routine?.links.length ?? 0;
+          if (totalSteps <= 0) {
+            return `${focusedSession.currentIndex + 1}`;
+          }
+
+          return `${Math.min(focusedSession.currentIndex + 1, totalSteps)}/${totalSteps}`;
+        })()}
+        elapsedLabel={focusedSession ? formatElapsed(focusedSession.startedAt, clockNow) : 'N/A'}
+        onConfirm={() => {
+          void executeStopRoutine();
+        }}
+      />
     </main>
   );
 }

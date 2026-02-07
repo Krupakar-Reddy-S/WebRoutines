@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { getFocusedSession as getFocusedSessionFromState } from '@/core/runner/focus';
 import {
   NAVIGATE_NEXT_COMMAND,
   NAVIGATE_PREVIOUS_COMMAND,
@@ -399,7 +400,10 @@ async function handleFocusControllerMessage(
 
 async function getFocusControllerState() {
   const [runnerState, focusModeActive] = await Promise.all([getRunnerState(), getFocusModeActive()]);
-  const focusedSession = resolveFocusedSession(runnerState.sessions, runnerState.focusedRoutineId);
+  const focusedSession = getFocusedSessionFromState(
+    runnerState.sessions,
+    runnerState.focusedRoutineId,
+  );
 
   if (!focusedSession) {
     return {
@@ -426,24 +430,6 @@ async function getFocusControllerState() {
       }
       : null,
   };
-}
-
-function resolveFocusedSession(
-  sessions: Awaited<ReturnType<typeof getRunnerState>>['sessions'],
-  focusedRoutineId: number | null,
-) {
-  if (sessions.length === 0) {
-    return null;
-  }
-
-  if (typeof focusedRoutineId === 'number') {
-    const focused = sessions.find((session) => session.routineId === focusedRoutineId);
-    if (focused) {
-      return focused;
-    }
-  }
-
-  return sessions[0] ?? null;
 }
 
 function isFocusControllerMessage(value: unknown): value is FocusControllerMessage {

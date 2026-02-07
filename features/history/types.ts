@@ -1,0 +1,25 @@
+import type { Routine, RoutineRun } from '@/lib/types';
+
+export interface HistoryRow {
+  run: RoutineRun;
+  routine: Routine | null;
+}
+
+export interface HistoryGroup {
+  label: string;
+  rows: HistoryRow[];
+}
+
+export interface HistoryStats {
+  totalRuns: number;
+  totalDurationMs: number;
+  completionRate: number;
+}
+
+export type RunStatusFilter = 'all' | 'in-progress' | 'complete' | 'partial';
+
+export interface HistoryRowsQueryResult {
+  rows: HistoryRow[];
+  totalRows: number;
+  stats: HistoryStats;
+}

@@ -94,6 +94,36 @@ export async function createRoutine(input: RoutineInput): Promise<number> {
   });
 }
 
+export async function importRoutines(routineInputs: RoutineInput[]): Promise<number> {
+  if (routineInputs.length === 0) {
+    return 0;
+  }
+
+  let createdCount = 0;
+
+  await db.transaction('rw', db.routines, async () => {
+    for (const input of routineInputs) {
+      const name = input.name.trim();
+      const links = input.links;
+
+      if (!name || !Array.isArray(links) || links.length === 0) {
+        throw new Error('Import contains an invalid routine entry.');
+      }
+
+      const now = Date.now();
+      await db.routines.add({
+        name,
+        links,
+        createdAt: now,
+        updatedAt: now,
+      });
+      createdCount += 1;
+    }
+  });
+
+  return createdCount;
+}
+
 export async function updateRoutine(id: number, input: RoutineInput): Promise<void> {
   await db.routines.update(id, {
     name: input.name.trim(),

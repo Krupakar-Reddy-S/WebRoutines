@@ -13,21 +13,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ConfirmDiscardDialog, ConfirmRemoveLinkDialog } from '@/features/editor/dialogs';
+import { computeUnsavedChanges, parseDraftInputUrls, summarizeUrlChanges } from '@/features/editor/draft';
+import { reorderDraftLinksById } from '@/features/editor/drag';
 import { db } from '@/lib/db';
 import {
   createRoutine,
   createRoutineLink,
-  normalizeRoutineUrl,
   updateRoutine,
 } from '@/lib/routines';
 import { formatDateLabel, formatDateTimeLabel, formatLastRunLabel } from '@/lib/time';
@@ -114,38 +108,17 @@ export function EditorView({
     [confirmLinkRemovalId, draftLinks],
   );
 
-  const unsavedChanges = useMemo(() => {
-    if (routineId && loadedRoutineId !== routineId) {
-      return {
-        hasChanges: false,
-        nameChanged: false,
-        addedUrls: [] as string[],
-        removedUrls: [] as string[],
-        orderChanged: false,
-      };
-    }
-
-    const trimmedInitialName = initialName.trim();
-    const trimmedCurrentName = name.trim();
-    const nameChanged = trimmedInitialName !== trimmedCurrentName;
-
-    const initialUrls = initialLinks.map((link) => link.url);
-    const draftUrls = draftLinks.map((link) => link.url);
-    const initialSet = new Set(initialUrls);
-    const draftSet = new Set(draftUrls);
-    const addedUrls = draftUrls.filter((url) => !initialSet.has(url));
-    const removedUrls = initialUrls.filter((url) => !draftSet.has(url));
-    const sameMembers = addedUrls.length === 0 && removedUrls.length === 0 && initialUrls.length === draftUrls.length;
-    const orderChanged = sameMembers && draftUrls.some((url, index) => url !== initialUrls[index]);
-
-    return {
-      hasChanges: nameChanged || addedUrls.length > 0 || removedUrls.length > 0 || orderChanged,
-      nameChanged,
-      addedUrls,
-      removedUrls,
-      orderChanged,
-    };
-  }, [draftLinks, initialLinks, initialName, loadedRoutineId, name, routineId]);
+  const unsavedChanges = useMemo(
+    () => computeUnsavedChanges({
+      routineId,
+      loadedRoutineId,
+      initialName,
+      initialLinks,
+      currentName: name,
+      draftLinks,
+    }),
+    [draftLinks, initialLinks, initialName, loadedRoutineId, name, routineId],
+  );
 
   const metadataText = useMemo(() => {
     if (!routine?.lastRunAt) {
@@ -361,19 +334,7 @@ export function EditorView({
       return;
     }
 
-    setDraftLinks((previous) => {
-      const fromIndex = previous.findIndex((link) => link.id === draggingLinkId);
-      const toIndex = previous.findIndex((link) => link.id === targetLinkId);
-
-      if (fromIndex < 0 || toIndex < 0) {
-        return previous;
-      }
-
-      const next = [...previous];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
-      return next;
-    });
+    setDraftLinks((previous) => reorderDraftLinksById(previous, draggingLinkId, targetLinkId));
 
     setDropTargetLinkId(null);
   }
@@ -400,98 +361,34 @@ export function EditorView({
         onOpenChange={setImportTabsDialogOpen}
         onAddUrls={onAddImportedUrls}
       />
-      <Dialog
+      <ConfirmDiscardDialog
         open={confirmDiscardTarget !== null}
+        changes={unsavedChanges}
+        summarizeUrlChanges={summarizeUrlChanges}
         onOpenChange={(open) => {
           if (!open) {
             setConfirmDiscardTarget(null);
           }
         }}
-      >
-        <DialogContent className="sm:max-w-[20rem]" showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Discard unsaved changes?</DialogTitle>
-            <DialogDescription>
-              You have unsaved updates in this routine. Leave now and lose these changes.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-1 rounded-lg border border-border/70 bg-muted/40 p-2 text-xs text-muted-foreground">
-            {unsavedChanges.nameChanged && (
-              <p>Name changed.</p>
-            )}
-            {unsavedChanges.addedUrls.length > 0 && (
-              <p>{`Added ${unsavedChanges.addedUrls.length} link${unsavedChanges.addedUrls.length === 1 ? '' : 's'}: ${summarizeUrlChanges(unsavedChanges.addedUrls)}`}</p>
-            )}
-            {unsavedChanges.removedUrls.length > 0 && (
-              <p>{`Removed ${unsavedChanges.removedUrls.length} link${unsavedChanges.removedUrls.length === 1 ? '' : 's'}: ${summarizeUrlChanges(unsavedChanges.removedUrls)}`}</p>
-            )}
-            {unsavedChanges.orderChanged && (
-              <p>Link order changed.</p>
-            )}
-          </div>
-          <DialogFooter className="flex-row gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              className="flex-1"
-              variant="outline"
-              onClick={() => setConfirmDiscardTarget(null)}
-            >
-              Stay here
-            </Button>
-            <Button
-              type="button"
-              className="flex-1"
-              variant="destructive"
-              onClick={onConfirmDiscardAndLeave}
-            >
-              Discard and leave
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog
+        onStay={() => setConfirmDiscardTarget(null)}
+        onDiscard={onConfirmDiscardAndLeave}
+      />
+      <ConfirmRemoveLinkDialog
         open={pendingDraftRemovalLink !== null}
+        url={pendingDraftRemovalLink?.url ?? null}
         onOpenChange={(open) => {
           if (!open) {
             setConfirmLinkRemovalId(null);
           }
         }}
-      >
-        <DialogContent className="sm:max-w-[20rem]" showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Remove link?</DialogTitle>
-            <DialogDescription>
-              This removes the link from the routine draft.
-            </DialogDescription>
-          </DialogHeader>
-          <p className="rounded-lg border border-border/70 bg-muted/40 p-2 break-all text-xs text-muted-foreground">
-            {pendingDraftRemovalLink?.url}
-          </p>
-          <DialogFooter className="flex-row gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              className="flex-1"
-              variant="outline"
-              onClick={() => setConfirmLinkRemovalId(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="flex-1"
-              variant="destructive"
-              onClick={() => {
-                if (!pendingDraftRemovalLink) {
-                  return;
-                }
-                onConfirmRemoveDraftLink(pendingDraftRemovalLink.id);
-              }}
-            >
-              Remove link
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onCancel={() => setConfirmLinkRemovalId(null)}
+        onConfirm={() => {
+          if (!pendingDraftRemovalLink) {
+            return;
+          }
+          onConfirmRemoveDraftLink(pendingDraftRemovalLink.id);
+        }}
+      />
 
       <Card size="sm">
         <CardHeader>
@@ -609,41 +506,10 @@ export function EditorView({
   );
 }
 
-function parseDraftInputUrls(rawInput: string): string[] {
-  const segments = rawInput
-    .split(/[\n,]/)
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  const dedupe = new Set<string>();
-  const urls: string[] = [];
-
-  for (const segment of segments) {
-    const normalizedUrl = normalizeRoutineUrl(segment);
-    if (!normalizedUrl || dedupe.has(normalizedUrl)) {
-      continue;
-    }
-
-    dedupe.add(normalizedUrl);
-    urls.push(normalizedUrl);
-  }
-
-  return urls;
-}
-
 function toErrorMessage(value: unknown, fallback: string): string {
   if (value instanceof Error && value.message) {
     return value.message;
   }
 
   return fallback;
-}
-
-function summarizeUrlChanges(urls: string[]): string {
-  const preview = urls.slice(0, 2).map((url) => getDisplayUrl(url)).join(', ');
-  if (urls.length <= 2) {
-    return preview;
-  }
-
-  return `${preview} +${urls.length - 2} more`;
 }

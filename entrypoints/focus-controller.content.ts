@@ -1,9 +1,13 @@
 import {
-  getAdaptiveAccentForHost,
-  getReadableForeground,
-  normalizeCssColor,
-  setAdaptiveAccentForHost,
-} from '@/lib/adaptive-accent';
+  refreshAdaptiveAccentForHost,
+  resolveControllerStyleTokens,
+} from '@/features/focus-controller/accent';
+import {
+  isExtensionContextInvalidError,
+  isRuntimeContextAvailable,
+  sendFocusControllerMessage,
+} from '@/features/focus-controller/bridge';
+import { escapeHtml, FOCUS_CONTROLLER_STYLES } from '@/features/focus-controller/ui';
 import { DEFAULT_SETTINGS, SETTINGS_STORAGE_KEY, getSettings, type AppSettings } from '@/lib/settings';
 
 const CONTROLLER_Y_KEY = 'focusControllerYOffset';
@@ -25,12 +29,6 @@ interface FocusControllerState {
   } | null;
 }
 
-interface FocusControllerResponse {
-  ok: boolean;
-  error?: string;
-  state?: FocusControllerState;
-}
-
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
@@ -45,77 +43,7 @@ export default defineContentScript({
     shadowRoot.append(container);
 
     const style = document.createElement('style');
-    style.textContent = `
-      :host { all: initial; }
-      .webroutines-pill {
-        --wr-accent: rgb(99, 102, 241);
-        --wr-on-accent: rgb(255, 255, 255);
-        --wr-surface: rgba(24, 24, 27, 0.92);
-        --wr-text: rgb(250, 250, 250);
-        --wr-muted: rgba(255, 255, 255, 0.8);
-        --wr-border: rgba(255, 255, 255, 0.24);
-        --wr-btn-bg: rgba(255, 255, 255, 0.08);
-        --wr-btn-border: rgba(255, 255, 255, 0.24);
-        --wr-btn-text: rgb(250, 250, 250);
-        position: fixed;
-        right: 16px;
-        top: 120px;
-        z-index: 2147483647;
-        width: fit-content;
-        max-width: min(252px, calc(100vw - 24px));
-        border: 1px solid var(--wr-border);
-        border-radius: 999px;
-        padding: 8px;
-        box-sizing: border-box;
-        background: var(--wr-surface);
-        color: var(--wr-text);
-        backdrop-filter: blur(8px);
-        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-        font-size: 12px;
-        box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.25), 0 8px 30px rgba(17, 24, 39, 0.35);
-      }
-      .webroutines-row {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-      .webroutines-title {
-        flex: 1 1 auto;
-        min-width: 56px;
-        max-width: 108px;
-        cursor: ns-resize;
-        user-select: none;
-      }
-      .webroutines-title strong {
-        line-height: 1.15;
-        display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .webroutines-title span {
-        color: var(--wr-muted);
-      }
-      .webroutines-btn {
-        border: 1px solid var(--wr-btn-border);
-        background: var(--wr-btn-bg);
-        color: var(--wr-btn-text);
-        border-radius: 999px;
-        height: 28px;
-        min-width: 28px;
-        padding: 0 8px;
-        font-size: 12px;
-        line-height: 1;
-        cursor: pointer;
-      }
-      .webroutines-btn--return {
-        min-width: 64px;
-      }
-      .webroutines-btn:disabled {
-        opacity: 0.45;
-        cursor: default;
-      }
-    `;
+    style.textContent = FOCUS_CONTROLLER_STYLES;
     shadowRoot.append(style);
 
     let state: FocusControllerState | null = null;
@@ -131,14 +59,6 @@ export default defineContentScript({
     let dragStartY = 0;
     let dragStartOffset = 0;
     let dragging = false;
-
-    function isRuntimeContextAvailable(): boolean {
-      try {
-        return Boolean(browser?.runtime?.id);
-      } catch {
-        return false;
-      }
-    }
 
     function disposeController() {
       if (disposed) {
@@ -215,7 +135,6 @@ export default defineContentScript({
 
     function render() {
       if (!shouldRender()) {
-        stopPolling();
         unmount();
         container.innerHTML = '';
         return;
@@ -293,7 +212,7 @@ export default defineContentScript({
       render();
 
       try {
-        const response = await sendControllerMessage(message);
+        const response = await sendFocusControllerMessage<FocusControllerState>(message);
         if (response === null) {
           markExtensionContextInvalid();
           return;
@@ -361,7 +280,9 @@ export default defineContentScript({
         settings = await safeGetSettings();
         await refreshAdaptiveAccent();
 
-        const response = await sendControllerMessage({ type: 'focus-controller:get-state' });
+        const response = await sendFocusControllerMessage<FocusControllerState>({
+          type: 'focus-controller:get-state',
+        });
         if (response === null) {
           markExtensionContextInvalid();
           return;
@@ -386,27 +307,6 @@ export default defineContentScript({
         controllerNotice = 'Unable to contact extension controller.';
       } finally {
         render();
-      }
-    }
-
-    async function sendControllerMessage(message: unknown): Promise<FocusControllerResponse | null> {
-      if (!isRuntimeContextAvailable()) {
-        return null;
-      }
-
-      try {
-        return normalizeControllerResponse(
-          await browser.runtime.sendMessage(message),
-        );
-      } catch (error) {
-        if (isExtensionContextInvalidError(error)) {
-          return null;
-        }
-
-        return {
-          ok: false,
-          error: 'Unable to contact extension controller.',
-        };
       }
     }
 
@@ -459,114 +359,13 @@ export default defineContentScript({
     window.addEventListener('mousemove', onDragMove);
     window.addEventListener('mouseup', onDragEnd);
     window.addEventListener('resize', onResize);
+    startPolling();
 
     await refresh().catch(() => {
       // Ignore initial refresh failure in restricted/invalidation scenarios.
     });
   },
 });
-
-async function refreshAdaptiveAccentForHost(): Promise<string | null> {
-  const host = window.location.hostname;
-  if (!host) {
-    return null;
-  }
-
-  const extracted = extractAccentFromPage();
-  if (extracted) {
-    try {
-      await setAdaptiveAccentForHost(host, extracted);
-    } catch {
-      // Ignore storage failures in restricted contexts.
-    }
-    return extracted;
-  }
-
-  try {
-    return await getAdaptiveAccentForHost(host);
-  } catch {
-    return null;
-  }
-}
-
-function extractAccentFromPage(): string | null {
-  const metaTheme = document
-    .querySelector('meta[name="theme-color"]')
-    ?.getAttribute('content');
-
-  const highPriorityCandidates = [
-    metaTheme,
-    getElementStyleValue('a', 'color'),
-    getElementStyleValue('button', 'backgroundColor'),
-    getElementStyleValue('[role="button"]', 'backgroundColor'),
-    getElementStyleValue('header', 'backgroundColor'),
-    getElementStyleValue('nav', 'backgroundColor'),
-    getElementStyleValue('[class*="btn"]', 'backgroundColor'),
-    getElementStyleValue('[class*="primary"]', 'backgroundColor'),
-  ];
-
-  for (const candidate of highPriorityCandidates) {
-    if (!candidate) {
-      continue;
-    }
-
-    const normalized = normalizeCssColor(candidate);
-    if (!normalized || !isUsefulAccentColor(normalized)) {
-      continue;
-    }
-
-    return normalized;
-  }
-
-  const fallbackCandidates = [
-    metaTheme,
-    getComputedStyle(document.body).color,
-    getComputedStyle(document.documentElement).color,
-    getComputedStyle(document.body).backgroundColor,
-    getComputedStyle(document.documentElement).backgroundColor,
-  ];
-
-  for (const candidate of fallbackCandidates) {
-    if (!candidate) {
-      continue;
-    }
-
-    const normalized = normalizeCssColor(candidate);
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  return null;
-}
-
-function getElementStyleValue(selector: string, property: 'color' | 'backgroundColor'): string | null {
-  const element = document.querySelector(selector);
-  if (!element) {
-    return null;
-  }
-
-  const value = getComputedStyle(element)[property];
-  return value || null;
-}
-
-function isUsefulAccentColor(value: string): boolean {
-  const match = value.match(/^rgb\((\d+), (\d+), (\d+)\)$/);
-  if (!match) {
-    return true;
-  }
-
-  const r = Number.parseInt(match[1], 10);
-  const g = Number.parseInt(match[2], 10);
-  const b = Number.parseInt(match[3], 10);
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const chroma = max - min;
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-
-  // Avoid near-grayscale and extremely dark/light tones that do not read as accents.
-  return chroma >= 14 && luminance >= 0.12 && luminance <= 0.9;
-}
 
 function clampYOffset(value: number): number {
   const viewportHeight = Math.max(window.innerHeight, 0);
@@ -600,61 +399,4 @@ async function safeGetSettings(): Promise<AppSettings> {
   } catch {
     return CONTROLLER_FALLBACK_SETTINGS;
   }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('\'', '&#39;');
-}
-
-function normalizeControllerResponse(value: unknown): FocusControllerResponse | null {
-  if (!value || typeof value !== 'object') {
-    return null;
-  }
-
-  const candidate = value as Partial<FocusControllerResponse>;
-  if (typeof candidate.ok !== 'boolean') {
-    return null;
-  }
-
-  return {
-    ok: candidate.ok,
-    error: typeof candidate.error === 'string' ? candidate.error : undefined,
-    state: candidate.state ?? undefined,
-  };
-}
-
-function isExtensionContextInvalidError(value: unknown): boolean {
-  if (!(value instanceof Error) || typeof value.message !== 'string') {
-    return false;
-  }
-
-  const message = value.message.toLowerCase();
-  return (
-    message.includes('extension context invalidated')
-    || message.includes('could not establish connection')
-    || message.includes('receiving end does not exist')
-    || message.includes('message port closed before a response was received')
-  );
-}
-
-function resolveControllerStyleTokens(accent: string | null) {
-  const adaptiveAccent = accent ?? 'rgb(99, 102, 241)';
-  const onAccent = getReadableForeground(adaptiveAccent);
-
-  return {
-    accent: adaptiveAccent,
-    onAccent,
-    surface: 'rgba(24, 24, 27, 0.92)',
-    text: 'rgb(250, 250, 250)',
-    muted: 'rgba(255, 255, 255, 0.8)',
-    border: adaptiveAccent,
-    buttonBackground: `color-mix(in srgb, ${adaptiveAccent} 22%, transparent)`,
-    buttonBorder: adaptiveAccent,
-    buttonText: onAccent,
-  };
 }
