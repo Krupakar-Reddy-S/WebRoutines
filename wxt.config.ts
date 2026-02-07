@@ -13,10 +13,10 @@ export default defineConfig({
   manifest: {
     name: 'WebRoutines',
     description: 'Daily website routines from a persistent side panel.',
-    permissions: ['storage', 'tabGroups', 'unlimitedStorage'],
+    permissions: ['storage', 'tabGroups', 'unlimitedStorage', 'favicon'],
     host_permissions: ['<all_urls>'],
     content_security_policy: {
-      extension_pages: "script-src 'self'; object-src 'self'; img-src 'self' data: https://www.google.com;",
+      extension_pages: "script-src 'self'; object-src 'self'; img-src 'self' data: https://www.google.com https://*.gstatic.com;",
     },
     options_ui: {
       page: 'options.html',
@@ -24,6 +24,20 @@ export default defineConfig({
     },
     action: {
       default_title: 'WebRoutines Controls',
+    },
+    commands: {
+      'navigate-previous-step': {
+        suggested_key: {
+          default: 'Alt+Shift+Left',
+        },
+        description: 'Move to the previous step in the focused runner',
+      },
+      'navigate-next-step': {
+        suggested_key: {
+          default: 'Alt+Shift+Right',
+        },
+        description: 'Move to the next step in the focused runner',
+      },
     },
   },
   vite: () => ({

@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeftIcon, GripVerticalIcon, PlusIcon, SettingsIcon, XIcon } from 'lucide-react';
-import { type DragEvent, type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type DragEvent, type FormEvent, type KeyboardEvent, useEffect, useMemo, useState } from 'react';
 
 import { FaviconImage } from '@/components/FaviconImage';
 import { ImportFromTabsDialog } from '@/components/ImportFromTabsDialog';
@@ -13,6 +13,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/db';
@@ -22,8 +30,11 @@ import {
   normalizeRoutineUrl,
   updateRoutine,
 } from '@/lib/routines';
+import { formatDateLabel, formatDateTimeLabel, formatLastRunLabel } from '@/lib/time';
 import type { RoutineLink } from '@/lib/types';
 import { getDisplayUrl } from '@/lib/url';
+
+type LeaveTarget = 'routines' | 'settings';
 
 interface EditorViewProps {
   routineId: number | null;
@@ -43,9 +54,13 @@ export function EditorView({
   const [name, setName] = useState('');
   const [newLinkInput, setNewLinkInput] = useState('');
   const [draftLinks, setDraftLinks] = useState<RoutineLink[]>([]);
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  const [initialName, setInitialName] = useState('');
+  const [initialLinks, setInitialLinks] = useState<RoutineLink[]>([]);
   const [draggingLinkId, setDraggingLinkId] = useState<string | null>(null);
   const [dropTargetLinkId, setDropTargetLinkId] = useState<string | null>(null);
   const [confirmLinkRemovalId, setConfirmLinkRemovalId] = useState<string | null>(null);
+  const [confirmDiscardTarget, setConfirmDiscardTarget] = useState<LeaveTarget | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [loadedRoutineId, setLoadedRoutineId] = useState<number | null>(null);
   const [importTabsDialogOpen, setImportTabsDialogOpen] = useState(false);
@@ -78,10 +93,13 @@ export function EditorView({
 
     setName(routine.name);
     setDraftLinks(routine.links.map((link) => ({ ...link })));
+    setInitialName(routine.name);
+    setInitialLinks(routine.links.map((link) => ({ ...link })));
     setNewLinkInput('');
     setDraggingLinkId(null);
     setDropTargetLinkId(null);
     setConfirmLinkRemovalId(null);
+    setConfirmDiscardTarget(null);
     setImportTabsDialogOpen(false);
     setLoadedRoutineId(routineId);
   }, [loadedRoutineId, routine, routineId, onError]);
@@ -96,17 +114,53 @@ export function EditorView({
     [confirmLinkRemovalId, draftLinks],
   );
 
+  const unsavedChanges = useMemo(() => {
+    if (routineId && loadedRoutineId !== routineId) {
+      return {
+        hasChanges: false,
+        nameChanged: false,
+        addedUrls: [] as string[],
+        removedUrls: [] as string[],
+        orderChanged: false,
+      };
+    }
+
+    const trimmedInitialName = initialName.trim();
+    const trimmedCurrentName = name.trim();
+    const nameChanged = trimmedInitialName !== trimmedCurrentName;
+
+    const initialUrls = initialLinks.map((link) => link.url);
+    const draftUrls = draftLinks.map((link) => link.url);
+    const initialSet = new Set(initialUrls);
+    const draftSet = new Set(draftUrls);
+    const addedUrls = draftUrls.filter((url) => !initialSet.has(url));
+    const removedUrls = initialUrls.filter((url) => !draftSet.has(url));
+    const sameMembers = addedUrls.length === 0 && removedUrls.length === 0 && initialUrls.length === draftUrls.length;
+    const orderChanged = sameMembers && draftUrls.some((url, index) => url !== initialUrls[index]);
+
+    return {
+      hasChanges: nameChanged || addedUrls.length > 0 || removedUrls.length > 0 || orderChanged,
+      nameChanged,
+      addedUrls,
+      removedUrls,
+      orderChanged,
+    };
+  }, [draftLinks, initialLinks, initialName, loadedRoutineId, name, routineId]);
+
   const metadataText = useMemo(() => {
+    if (!routine?.lastRunAt) {
+      return 'Last run: Never run';
+    }
+
+    return `Last run: ${formatLastRunLabel(routine.lastRunAt, clockNow)} (${formatDateTimeLabel(routine.lastRunAt)})`;
+  }, [clockNow, routine?.lastRunAt]);
+
+  const metadataSubText = useMemo(() => {
     if (!routine) {
       return `${draftLinks.length} links`;
     }
 
-    const createdText = new Date(routine.createdAt).toLocaleDateString();
-    const lastRunText = routine.lastRunAt
-      ? new Date(routine.lastRunAt).toLocaleString()
-      : 'Never';
-
-    return `${draftLinks.length} links · Created ${createdText} · Last run ${lastRunText}`;
+    return `${draftLinks.length} links · Created ${formatDateLabel(routine.createdAt)}`;
   }, [draftLinks.length, routine]);
 
   useEffect(() => {
@@ -121,8 +175,36 @@ export function EditorView({
     setConfirmLinkRemovalId(null);
   }, [confirmLinkRemovalId, draftLinks]);
 
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setClockNow(Date.now());
+    }, 60_000);
+
+    return () => window.clearInterval(timerId);
+  }, []);
+
+  useEffect(() => {
+    if (!unsavedChanges.hasChanges) {
+      return;
+    }
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [unsavedChanges.hasChanges]);
+
   async function onSaveRoutine(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    if (!submitter || submitter.dataset.action !== 'save-routine') {
+      return;
+    }
+
     onError(null);
     onMessage(null);
 
@@ -184,6 +266,16 @@ export function EditorView({
     );
   }
 
+  function onLinkInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    onAddDraftLink();
+  }
+
   async function onAddImportedUrls(urls: string[]) {
     onError(null);
     onMessage(null);
@@ -210,6 +302,34 @@ export function EditorView({
     setDraftLinks((previous) => previous.filter((link) => link.id !== linkId));
     setConfirmLinkRemovalId(null);
     onMessage('Link removed from routine draft.');
+  }
+
+  function openNavigationTarget(target: LeaveTarget) {
+    if (target === 'routines') {
+      onOpenRoutines();
+      return;
+    }
+
+    onOpenSettings();
+  }
+
+  function requestNavigateAway(target: LeaveTarget) {
+    if (unsavedChanges.hasChanges) {
+      setConfirmDiscardTarget(target);
+      return;
+    }
+
+    openNavigationTarget(target);
+  }
+
+  function onConfirmDiscardAndLeave() {
+    if (!confirmDiscardTarget) {
+      return;
+    }
+
+    const target = confirmDiscardTarget;
+    setConfirmDiscardTarget(null);
+    openNavigationTarget(target);
   }
 
   function onDragStartLink(event: DragEvent<HTMLDivElement>, linkId: string) {
@@ -262,9 +382,12 @@ export function EditorView({
     setName('');
     setNewLinkInput('');
     setDraftLinks([]);
+    setInitialName('');
+    setInitialLinks([]);
     setDraggingLinkId(null);
     setDropTargetLinkId(null);
     setConfirmLinkRemovalId(null);
+    setConfirmDiscardTarget(null);
     setImportTabsDialogOpen(false);
     setLoadedRoutineId(null);
   }
@@ -277,18 +400,113 @@ export function EditorView({
         onOpenChange={setImportTabsDialogOpen}
         onAddUrls={onAddImportedUrls}
       />
+      <Dialog
+        open={confirmDiscardTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmDiscardTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[20rem]" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Discard unsaved changes?</DialogTitle>
+            <DialogDescription>
+              You have unsaved updates in this routine. Leave now and lose these changes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1 rounded-lg border border-border/70 bg-muted/40 p-2 text-xs text-muted-foreground">
+            {unsavedChanges.nameChanged && (
+              <p>Name changed.</p>
+            )}
+            {unsavedChanges.addedUrls.length > 0 && (
+              <p>{`Added ${unsavedChanges.addedUrls.length} link${unsavedChanges.addedUrls.length === 1 ? '' : 's'}: ${summarizeUrlChanges(unsavedChanges.addedUrls)}`}</p>
+            )}
+            {unsavedChanges.removedUrls.length > 0 && (
+              <p>{`Removed ${unsavedChanges.removedUrls.length} link${unsavedChanges.removedUrls.length === 1 ? '' : 's'}: ${summarizeUrlChanges(unsavedChanges.removedUrls)}`}</p>
+            )}
+            {unsavedChanges.orderChanged && (
+              <p>Link order changed.</p>
+            )}
+          </div>
+          <DialogFooter className="flex-row gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              className="flex-1"
+              variant="outline"
+              onClick={() => setConfirmDiscardTarget(null)}
+            >
+              Stay here
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              variant="destructive"
+              onClick={onConfirmDiscardAndLeave}
+            >
+              Discard and leave
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={pendingDraftRemovalLink !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmLinkRemovalId(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[20rem]" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Remove link?</DialogTitle>
+            <DialogDescription>
+              This removes the link from the routine draft.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="rounded-lg border border-border/70 bg-muted/40 p-2 break-all text-xs text-muted-foreground">
+            {pendingDraftRemovalLink?.url}
+          </p>
+          <DialogFooter className="flex-row gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              className="flex-1"
+              variant="outline"
+              onClick={() => setConfirmLinkRemovalId(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              variant="destructive"
+              onClick={() => {
+                if (!pendingDraftRemovalLink) {
+                  return;
+                }
+                onConfirmRemoveDraftLink(pendingDraftRemovalLink.id);
+              }}
+            >
+              Remove link
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card size="sm">
         <CardHeader>
           <div>
             <CardTitle>{routineId ? 'Edit Routine' : 'New Routine'}</CardTitle>
-            <CardDescription>{metadataText}</CardDescription>
+            <CardDescription className="space-y-0.5">
+              <p>{metadataSubText}</p>
+              <p>{metadataText}</p>
+            </CardDescription>
             <div className="mt-2 flex items-center gap-2">
-              <Button type="button" size="sm" variant="outline" onClick={onOpenRoutines}>
+              <Button type="button" size="sm" variant="outline" onClick={() => requestNavigateAway('routines')}>
                 <ArrowLeftIcon />
                 Back to routines
               </Button>
-              <Button type="button" size="sm" variant="outline" onClick={onOpenSettings}>
+              <Button type="button" size="sm" variant="outline" onClick={() => requestNavigateAway('settings')}>
                 <SettingsIcon />
                 Settings
               </Button>
@@ -317,6 +535,7 @@ export function EditorView({
                 id="routine-link"
                 value={newLinkInput}
                 onChange={(event) => setNewLinkInput(event.target.value)}
+                onKeyDown={onLinkInputKeyDown}
                 placeholder="https://example.com/blog, https://news.ycombinator.com"
               />
               <div className="flex flex-wrap gap-2">
@@ -373,38 +592,13 @@ export function EditorView({
                   </Button>
                 </div>
               ))}
-
-              {pendingDraftRemovalLink && (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2">
-                  <p className="text-xs font-medium text-destructive">Remove this link from the routine?</p>
-                  <p className="mt-1 break-all text-xs text-muted-foreground">{pendingDraftRemovalLink.url}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="destructive"
-                      onClick={() => onConfirmRemoveDraftLink(pendingDraftRemovalLink.id)}
-                    >
-                      Remove link
-                    </Button>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="outline"
-                      onClick={() => setConfirmLinkRemovalId(null)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/70 pt-3">
-              <Button type="button" variant="outline" onClick={onOpenRoutines}>
+              <Button type="button" variant="outline" onClick={() => requestNavigateAway('routines')}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={busyAction === 'save-routine'}>
+              <Button type="submit" data-action="save-routine" disabled={busyAction === 'save-routine'}>
                 {routineId ? 'Save changes' : 'Create routine'}
               </Button>
             </div>
@@ -443,4 +637,13 @@ function toErrorMessage(value: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function summarizeUrlChanges(urls: string[]): string {
+  const preview = urls.slice(0, 2).map((url) => getDisplayUrl(url)).join(', ');
+  if (urls.length <= 2) {
+    return preview;
+  }
+
+  return `${preview} +${urls.length - 2} more`;
 }

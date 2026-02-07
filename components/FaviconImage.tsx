@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { getFaviconUrl } from '@/lib/url';
 
@@ -8,9 +8,11 @@ interface FaviconImageProps {
 }
 
 export function FaviconImage({ url, sizeClassName = 'h-5 w-5' }: FaviconImageProps) {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const faviconUrl = useMemo(() => getFaviconUrl(url), [url]);
+  const failed = !faviconUrl || failedSrc === faviconUrl;
 
-  if (failed) {
+  if (failed || !faviconUrl) {
     return (
       <span
         aria-hidden="true"
@@ -23,10 +25,10 @@ export function FaviconImage({ url, sizeClassName = 'h-5 w-5' }: FaviconImagePro
 
   return (
     <img
-      src={getFaviconUrl(url)}
+      src={faviconUrl}
       alt=""
       className={`${sizeClassName} rounded-sm bg-muted object-cover`}
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(faviconUrl)}
     />
   );
 }

@@ -1,7 +1,7 @@
 export function getFaviconUrl(url: string, size: number = 32): string {
   try {
-    const domain = new URL(url).hostname;
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=${size}`;
+    const pageUrl = encodeURIComponent(new URL(url).toString());
+    return `chrome-extension://${browser.runtime.id}/_favicon/?pageUrl=${pageUrl}&size=${size}`;
   } catch {
     return '';
   }

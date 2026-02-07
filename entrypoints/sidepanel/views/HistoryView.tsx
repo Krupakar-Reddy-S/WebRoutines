@@ -45,6 +45,9 @@ interface HistoryStats {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const RUNS_PAGE_SIZE = 20;
+
+type RunStatusFilter = 'all' | 'in-progress' | 'complete' | 'partial';
 
 export function HistoryView({
   onOpenRunner,
@@ -55,6 +58,16 @@ export function HistoryView({
 
   const selectedRoutineId = useMemo(
     () => parseRoutineFilter(searchParams.get('routine')),
+    [searchParams],
+  );
+
+  const selectedStatusFilter = useMemo(
+    () => parseStatusFilter(searchParams.get('status')),
+    [searchParams],
+  );
+
+  const currentPage = useMemo(
+    () => parsePage(searchParams.get('page')),
     [searchParams],
   );
 
@@ -105,14 +118,9 @@ export function HistoryView({
     [],
   );
 
-  const stats = useMemo(
-    () => computeHistoryStats(rows ?? [], clockNow),
-    [clockNow, rows],
-  );
-
-  const groupedRows = useMemo(
-    () => groupRowsByDate(rows ?? [], clockNow),
-    [clockNow, rows],
+  const filteredRows = useMemo(
+    () => (rows ?? []).filter((row) => rowMatchesStatusFilter(row, selectedStatusFilter)),
+    [rows, selectedStatusFilter],
   );
 
   const selectedRoutineLabel = useMemo(() => {
@@ -127,6 +135,36 @@ export function HistoryView({
 
     return `Routine #${selectedRoutineId}`;
   }, [routineFilterOptions, selectedRoutineId]);
+
+  const selectedStatusLabel = useMemo(
+    () => getStatusFilterLabel(selectedStatusFilter),
+    [selectedStatusFilter],
+  );
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredRows.length / RUNS_PAGE_SIZE)),
+    [filteredRows.length],
+  );
+
+  const safeCurrentPage = useMemo(
+    () => Math.min(currentPage, totalPages),
+    [currentPage, totalPages],
+  );
+
+  const pageRows = useMemo(() => {
+    const start = (safeCurrentPage - 1) * RUNS_PAGE_SIZE;
+    return filteredRows.slice(start, start + RUNS_PAGE_SIZE);
+  }, [filteredRows, safeCurrentPage]);
+
+  const stats = useMemo(
+    () => computeHistoryStats(filteredRows, clockNow),
+    [clockNow, filteredRows],
+  );
+
+  const groupedRows = useMemo(
+    () => groupRowsByDate(pageRows, clockNow),
+    [clockNow, pageRows],
+  );
 
   useEffect(() => {
     const timerId = window.setInterval(() => {
@@ -148,12 +186,47 @@ export function HistoryView({
     } else {
       nextParams.set('routine', value);
     }
+    nextParams.delete('page');
+
+    setSearchParams(nextParams);
+  }
+
+  function onSelectStatusFilter(value: string | null) {
+    if (!value) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (value === 'all') {
+      nextParams.delete('status');
+    } else {
+      nextParams.set('status', value);
+    }
+    nextParams.delete('page');
 
     setSearchParams(nextParams);
   }
 
   function onFocusRoutineFilter(routineId: number) {
     onSelectRoutineFilter(String(routineId));
+  }
+
+  function onPageChange(nextPage: number) {
+    if (!Number.isFinite(nextPage)) {
+      return;
+    }
+
+    const safePage = Math.max(1, Math.min(totalPages, Math.floor(nextPage)));
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (safePage <= 1) {
+      nextParams.delete('page');
+    } else {
+      nextParams.set('page', String(safePage));
+    }
+
+    setSearchParams(nextParams);
   }
 
   return (
@@ -179,8 +252,44 @@ export function HistoryView({
 
       <Card>
         <CardHeader>
-          <CardTitle>Summary</CardTitle>
-          <CardDescription>{selectedRoutineLabel}</CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <CardTitle>Summary</CardTitle>
+              <CardDescription>{`${selectedRoutineLabel} · ${selectedStatusLabel}`}</CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Select
+                value={typeof selectedRoutineId === 'number' ? String(selectedRoutineId) : 'all'}
+                onValueChange={onSelectRoutineFilter}
+              >
+                <SelectTrigger className="h-8 w-[10.5rem]" id="history-routine-filter">
+                  <SelectValue>{selectedRoutineLabel}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All routines</SelectItem>
+                  {routineFilterOptions?.map((routine) => (
+                    <SelectItem key={routine.id} value={String(routine.id)}>
+                      {routine.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={selectedStatusFilter}
+                onValueChange={onSelectStatusFilter}
+              >
+                <SelectTrigger className="h-8 w-[8rem]" id="history-status-filter">
+                  <SelectValue>{selectedStatusLabel}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="in-progress">In progress</SelectItem>
+                  <SelectItem value="complete">Complete</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-2">
@@ -202,34 +311,10 @@ export function HistoryView({
 
       <Card>
         <CardHeader>
-          <CardTitle>Filter</CardTitle>
-          <CardDescription>Choose a routine or view all runs.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Select
-            value={typeof selectedRoutineId === 'number' ? String(selectedRoutineId) : 'all'}
-            onValueChange={onSelectRoutineFilter}
-          >
-            <SelectTrigger className="w-full" id="history-routine-filter">
-              <SelectValue>{selectedRoutineLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All routines</SelectItem>
-              {routineFilterOptions?.map((routine) => (
-                <SelectItem key={routine.id} value={String(routine.id)}>
-                  {routine.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle>Runs</CardTitle>
           <CardDescription>
-            {(rows?.length ?? 0)} run{(rows?.length ?? 0) === 1 ? '' : 's'} found
+            {filteredRows.length} run{filteredRows.length === 1 ? '' : 's'} found
+            {` · Page ${safeCurrentPage} of ${totalPages}`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -239,6 +324,9 @@ export function HistoryView({
 
           {rows?.length === 0 && (
             <p className="text-sm text-muted-foreground">No run history yet. Start a routine to build history.</p>
+          )}
+          {rows && rows.length > 0 && filteredRows.length === 0 && (
+            <p className="text-sm text-muted-foreground">No runs match the selected filters.</p>
           )}
 
           {groupedRows.map((group) => (
@@ -256,6 +344,37 @@ export function HistoryView({
               </div>
             </section>
           ))}
+
+          {filteredRows.length > RUNS_PAGE_SIZE && (
+            <div className="flex items-center justify-between gap-2 border-t border-border/70 pt-2">
+              <p className="text-xs text-muted-foreground">
+                Showing {(safeCurrentPage - 1) * RUNS_PAGE_SIZE + 1}
+                -
+                {Math.min(safeCurrentPage * RUNS_PAGE_SIZE, filteredRows.length)}
+                {` of ${filteredRows.length}`}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => onPageChange(safeCurrentPage - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => onPageChange(safeCurrentPage + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </>
@@ -407,6 +526,53 @@ function parseRoutineFilter(rawValue: string | null): number | null {
 
   const parsed = Number(rawValue);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parsePage(rawValue: string | null): number {
+  if (!rawValue) {
+    return 1;
+  }
+
+  const parsed = Number(rawValue);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function parseStatusFilter(rawValue: string | null): RunStatusFilter {
+  if (rawValue === 'in-progress' || rawValue === 'complete' || rawValue === 'partial') {
+    return rawValue;
+  }
+
+  return 'all';
+}
+
+function rowMatchesStatusFilter(row: HistoryRow, statusFilter: RunStatusFilter): boolean {
+  if (statusFilter === 'all') {
+    return true;
+  }
+
+  if (statusFilter === 'in-progress') {
+    return row.run.stoppedAt === null;
+  }
+
+  if (statusFilter === 'complete') {
+    return row.run.stoppedAt !== null && row.run.completedFull;
+  }
+
+  return row.run.stoppedAt !== null && !row.run.completedFull;
+}
+
+function getStatusFilterLabel(statusFilter: RunStatusFilter): string {
+  switch (statusFilter) {
+    case 'in-progress':
+      return 'In progress';
+    case 'complete':
+      return 'Complete';
+    case 'partial':
+      return 'Partial';
+    case 'all':
+    default:
+      return 'All statuses';
+  }
 }
 
 function computeHistoryStats(rows: HistoryRow[], clockNow: number): HistoryStats {

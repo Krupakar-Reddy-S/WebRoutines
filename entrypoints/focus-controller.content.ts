@@ -124,6 +124,7 @@ export default defineContentScript({
     let yOffset = await getStoredYOffset();
     let settings = await safeGetSettings();
     let currentAccent: string | null = null;
+    let extensionContextInvalid = false;
 
     let dragStartY = 0;
     let dragStartOffset = 0;
@@ -213,13 +214,23 @@ export default defineContentScript({
     }
 
     async function performAction(message: unknown) {
+      if (extensionContextInvalid) {
+        return;
+      }
+
       busy = true;
       controllerNotice = null;
       render();
 
-      const response = normalizeControllerResponse(
-        await browser.runtime.sendMessage(message),
-      );
+      const response = await sendControllerMessage(message);
+      if (response === null) {
+        extensionContextInvalid = true;
+        busy = false;
+        state = null;
+        controllerNotice = null;
+        render();
+        return;
+      }
 
       if (response?.ok && response.state) {
         state = response.state;
@@ -261,12 +272,22 @@ export default defineContentScript({
     }
 
     async function refresh() {
+      if (extensionContextInvalid) {
+        return;
+      }
+
       settings = await safeGetSettings();
       await refreshAdaptiveAccent();
 
-      const response = normalizeControllerResponse(
-        await browser.runtime.sendMessage({ type: 'focus-controller:get-state' }),
-      );
+      const response = await sendControllerMessage({ type: 'focus-controller:get-state' });
+      if (response === null) {
+        extensionContextInvalid = true;
+        state = null;
+        controllerNotice = null;
+        render();
+        return;
+      }
+
       if (response?.ok && response.state) {
         state = response.state;
         controllerNotice = null;
@@ -278,6 +299,23 @@ export default defineContentScript({
       }
 
       render();
+    }
+
+    async function sendControllerMessage(message: unknown): Promise<FocusControllerResponse | null> {
+      try {
+        return normalizeControllerResponse(
+          await browser.runtime.sendMessage(message),
+        );
+      } catch (error) {
+        if (isExtensionContextInvalidError(error)) {
+          return null;
+        }
+
+        return {
+          ok: false,
+          error: 'Unable to contact extension controller.',
+        };
+      }
     }
 
     async function refreshAdaptiveAccent() {
@@ -488,6 +526,20 @@ function normalizeControllerResponse(value: unknown): FocusControllerResponse | 
     error: typeof candidate.error === 'string' ? candidate.error : undefined,
     state: candidate.state ?? undefined,
   };
+}
+
+function isExtensionContextInvalidError(value: unknown): boolean {
+  if (!(value instanceof Error) || typeof value.message !== 'string') {
+    return false;
+  }
+
+  const message = value.message.toLowerCase();
+  return (
+    message.includes('extension context invalidated')
+    || message.includes('could not establish connection')
+    || message.includes('receiving end does not exist')
+    || message.includes('message port closed before a response was received')
+  );
 }
 
 function resolveControllerStyleTokens(accent: string | null) {

@@ -14,13 +14,13 @@ import {
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/db';
-import { isTextInputTarget } from '@/lib/dom';
 import {
   navigateSessionByOffset,
   openCurrentSessionLink,
   openSidePanelForCurrentWindow,
   stopActiveRoutine,
 } from '@/lib/navigation';
+import { formatNavigationShortcutPair, useNavigationShortcuts } from '@/lib/navigation-shortcuts';
 import {
   getRunnerState,
   setFocusedRoutine,
@@ -38,6 +38,7 @@ interface RunnerState {
 
 function App() {
   const { settings } = useSettings();
+  const navigationShortcuts = useNavigationShortcuts();
   const [runnerState, setRunnerState] = useState<RunnerState>({ sessions: [], focusedRoutineId: null });
   const [status, setStatus] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -110,27 +111,6 @@ function App() {
 
     return () => window.clearInterval(timerId);
   }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (isTextInputTarget(event.target)) {
-        return;
-      }
-
-      if (event.altKey && event.shiftKey && event.key === 'ArrowLeft') {
-        event.preventDefault();
-        void onNavigate(-1);
-      }
-
-      if (event.altKey && event.shiftKey && event.key === 'ArrowRight') {
-        event.preventDefault();
-        void onNavigate(1);
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onNavigate]);
 
   useEffect(() => {
     if (!status) {
@@ -293,7 +273,9 @@ function App() {
                 Active {formatElapsed(focusedSession.startedAt, clockNow)}
               </p>
               {currentLink && <p className="break-all text-xs text-muted-foreground">{currentLink.url}</p>}
-              <p className="text-xs text-muted-foreground">Alt+Shift+Left/Right to move steps.</p>
+              <p className="text-xs text-muted-foreground">
+                {`${formatNavigationShortcutPair(navigationShortcuts)} to move steps.`}
+              </p>
               <Separator />
               <div className="grid grid-cols-2 gap-2">
                 <Button type="button" size="sm" onClick={() => void onNavigate(-1)} disabled={busyAction === 'previous'}>

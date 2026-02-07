@@ -1,5 +1,9 @@
 import { db } from '@/lib/db';
 import {
+  NAVIGATE_NEXT_COMMAND,
+  NAVIGATE_PREVIOUS_COMMAND,
+} from '@/lib/navigation-shortcuts';
+import {
   navigateSessionByOffset,
   openSidePanelForCurrentWindow,
   openSidePanelForTab,
@@ -297,6 +301,27 @@ function attachControllerMessageBridge() {
   });
 }
 
+function attachCommandListeners() {
+  if (!browser.commands?.onCommand) {
+    return;
+  }
+
+  browser.commands.onCommand.addListener((command) => {
+    void handleCommand(command);
+  });
+}
+
+async function handleCommand(command: string) {
+  if (command === NAVIGATE_PREVIOUS_COMMAND) {
+    await navigateSessionByOffset(-1);
+    return;
+  }
+
+  if (command === NAVIGATE_NEXT_COMMAND) {
+    await navigateSessionByOffset(1);
+  }
+}
+
 async function handleFocusControllerMessage(
   message: FocusControllerMessage,
   sender?: { tab?: { id?: number } },
@@ -449,6 +474,7 @@ export default defineBackground(() => {
   void configureSidePanelAction();
   attachRunnerLifecycleListeners();
   attachControllerMessageBridge();
+  attachCommandListeners();
 
   browser.runtime.onInstalled.addListener(() => {
     void configureSidePanelAction();

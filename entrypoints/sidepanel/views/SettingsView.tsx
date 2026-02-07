@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { formatNavigationShortcutPair, useNavigationShortcuts } from '@/lib/navigation-shortcuts';
 import { Switch } from '@/components/ui/switch';
 import { setSettingsPatch } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
@@ -28,6 +29,7 @@ interface SettingsViewProps {
 
 export function SettingsView({ onOpenRunner }: SettingsViewProps) {
   const { settings } = useSettings();
+  const navigationShortcuts = useNavigationShortcuts();
 
   async function onSetStaticTheme(value: string) {
     if (value !== 'light' && value !== 'dark' && value !== 'system') {
@@ -50,6 +52,14 @@ export function SettingsView({ onOpenRunner }: SettingsViewProps) {
     checked: boolean,
   ) {
     await setSettingsPatch({ [key]: checked });
+  }
+
+  async function onOpenShortcutSettings() {
+    try {
+      await browser.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    } catch {
+      // Ignore inability to open browser shortcut settings page.
+    }
   }
 
   return (
@@ -159,6 +169,25 @@ export function SettingsView({ onOpenRunner }: SettingsViewProps) {
               onCheckedChange={(checked) => void onSetBooleanSetting('focusModeEnabled', Boolean(checked))}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Keyboard Shortcuts</CardTitle>
+          <CardDescription>Edit extension shortcuts from Chrome shortcut settings.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Current navigation shortcuts: {formatNavigationShortcutPair(navigationShortcuts)}
+          </p>
+          <div className="rounded-lg border border-border/70 p-2 text-xs">
+            <p><span className="font-medium">Previous step:</span> {navigationShortcuts.previous}</p>
+            <p className="mt-1"><span className="font-medium">Next step:</span> {navigationShortcuts.next}</p>
+          </div>
+          <Button type="button" size="sm" variant="outline" onClick={() => void onOpenShortcutSettings()}>
+            Open shortcut settings
+          </Button>
         </CardContent>
       </Card>
     </>

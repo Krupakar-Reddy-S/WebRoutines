@@ -1,5 +1,5 @@
 import { ChevronDownIcon, ChevronUpIcon, MoreVerticalIcon, PlayIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import { FaviconImage } from '@/components/FaviconImage';
 import { FaviconStrip } from '@/components/FaviconStrip';
@@ -9,11 +9,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { updateRoutine } from '@/lib/routines';
-import { formatElapsed } from '@/lib/time';
+import { formatLastRunLabel } from '@/lib/time';
 import type { Routine, RoutineLink } from '@/lib/types';
 import { getDisplayUrl } from '@/lib/url';
 
@@ -48,46 +46,9 @@ export function RoutineAccordionCard({
   onMessage,
   onError,
 }: RoutineAccordionCardProps) {
-  const [confirmRemoveLinkId, setConfirmRemoveLinkId] = useState<string | null>(null);
-  const [busyInlineAction, setBusyInlineAction] = useState<string | null>(null);
-
-  const pendingDraftRemovalLink = useMemo(
-    () => routine.links.find((link) => link.id === confirmRemoveLinkId) ?? null,
-    [confirmRemoveLinkId, routine.links],
-  );
-
   const lastRunLabel = useMemo(() => {
-    if (!routine.lastRunAt) {
-      return 'Never run';
-    }
-
-    const elapsed = formatElapsed(routine.lastRunAt, clockNow);
-    return elapsed === 'just now' ? 'Just now' : `${elapsed} ago`;
+    return formatLastRunLabel(routine.lastRunAt, clockNow);
   }, [clockNow, routine.lastRunAt]);
-
-  async function onRemoveLink(link: RoutineLink) {
-    if (!routine.id) {
-      return;
-    }
-
-    if (routine.links.length <= 1) {
-      onError('A routine must have at least one link.');
-      return;
-    }
-
-    setBusyInlineAction(`remove-${link.id}`);
-
-    try {
-      const nextLinks = routine.links.filter((item) => item.id !== link.id);
-      await updateRoutine(routine.id, { name: routine.name, links: nextLinks });
-      setConfirmRemoveLinkId(null);
-      onMessage('Link removed from routine.');
-    } catch (error) {
-      onError(toErrorMessage(error, 'Failed to remove link.'));
-    } finally {
-      setBusyInlineAction(null);
-    }
-  }
 
   async function onOpenLink(link: RoutineLink) {
     try {
@@ -173,41 +134,11 @@ export function RoutineAccordionCard({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => void onOpenLink(link)}>Open in new tab</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => void onCopyLink(link)}>Copy URL</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive" onClick={() => setConfirmRemoveLinkId(link.id)}>
-                      Remove
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             ))}
           </div>
-
-          {pendingDraftRemovalLink && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2">
-              <p className="text-xs font-medium text-destructive">Remove this link from the routine?</p>
-              <p className="mt-1 break-all text-xs text-muted-foreground">{pendingDraftRemovalLink.url}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="destructive"
-                  disabled={busyInlineAction === `remove-${pendingDraftRemovalLink.id}`}
-                  onClick={() => void onRemoveLink(pendingDraftRemovalLink)}
-                >
-                  Remove link
-                </Button>
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="outline"
-                  onClick={() => setConfirmRemoveLinkId(null)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
 
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button

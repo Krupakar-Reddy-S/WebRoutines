@@ -18,6 +18,7 @@ import {
   openCurrentSessionLink,
   stopActiveRoutine,
 } from '@/lib/navigation';
+import { formatNavigationShortcutPair, useNavigationShortcuts } from '@/lib/navigation-shortcuts';
 import { setSettingsPatch } from '@/lib/settings';
 import {
   getRunnerState,
@@ -53,6 +54,7 @@ export function RunnerHomeView({
   onError,
 }: RunnerHomeViewProps) {
   const { settings } = useSettings();
+  const navigationShortcuts = useNavigationShortcuts();
   const [runnerState, setRunnerState] = useState<RunnerState>({ sessions: [], focusedRoutineId: null });
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
@@ -332,7 +334,7 @@ export function RunnerHomeView({
       <Card>
         <CardHeader>
           <CardTitle>Focused Runner</CardTitle>
-          <CardDescription>Hotkeys: Alt+Shift+Left / Alt+Shift+Right.</CardDescription>
+          <CardDescription>{`Hotkeys: ${formatNavigationShortcutPair(navigationShortcuts)}.`}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {!focusedSession && <p className="text-sm text-muted-foreground">No focused runner.</p>}

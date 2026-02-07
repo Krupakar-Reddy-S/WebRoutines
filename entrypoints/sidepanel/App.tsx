@@ -8,9 +8,7 @@ import {
   useParams,
 } from 'react-router-dom';
 
-import { navigateSessionByOffset } from '@/lib/navigation';
 import { consumeRequestedSidepanelView, subscribeToRequestedSidepanelView } from '@/lib/session';
-import { isTextInputTarget } from '@/lib/dom';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { MessageBanner } from './components/MessageBanner';
@@ -57,27 +55,6 @@ function SidepanelShell() {
 
     return () => window.clearTimeout(timeoutId);
   }, [message]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (isTextInputTarget(event.target)) {
-        return;
-      }
-
-      if (event.altKey && event.shiftKey && event.key === 'ArrowLeft') {
-        event.preventDefault();
-        void navigateSessionByOffset(-1);
-      }
-
-      if (event.altKey && event.shiftKey && event.key === 'ArrowRight') {
-        event.preventDefault();
-        void navigateSessionByOffset(1);
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
 
   function openRunner() {
     navigate('/');

@@ -1,17 +1,18 @@
-# WebRoutines Project Context (Post Feature List 5)
+# WebRoutines Project Context (Post Feature List 6)
 
 ## Why this document exists
-This is a current technical brief for WebRoutines after Feature List 5 implementation, so product/planning discussions can happen without re-reading the full repo each time. It also includes a condensed history of Feature Lists 1–5 for quick handoff to new collaborators or AI tooling.
+This is a current technical brief for WebRoutines after Feature List 6 implementation, so product and planning discussions can happen without re-reading the full repo each time. It includes a condensed history of Feature Lists 1-6 and recent tooling changes.
 
 ## 1) Current delivery state
 Last major implementation commit:
-- `f5cfd1c` (`2026-02-06`) - Feature List 5 Phase B: run history foundation
+- `b072cac` (`2026-02-07`) - Feature 6 Phase B: history route, stats, and run insights UI
 
 Recent milestone commits:
-- `4b6154a` - Feature List 5 Phase A: sidepanel split + routing + runner resilience
-- `87a51f7` - Feature List 4: settings + focus mini-controller + theme split
+- `cea068a` (`2026-02-07`) - Feature 6 Phase A: tab-group simplification and sidepanel UX overhaul
+- `9ad6fe5` (`2026-02-07`) - React Compiler enablement + compiler-aware linting setup
 
 Validation status:
+- `bun run lint` passes
 - `bun run compile` passes
 - `bun run build` passes
 
@@ -22,21 +23,22 @@ Core behavior:
 - Users create routines (named URL lists).
 - One active runner per routine.
 - Multiple routines can run at once.
-- Runner supports `same-tab` and `tab-group` modes.
+- Runtime sessions are tab-group only.
+- Tab loading supports `eager` and `lazy` modes.
 
 Primary surfaces:
-- Sidepanel app (`runner`, `routines`, `editor`, `settings` views).
+- Sidepanel app (`runner`, `routines`, `editor`, `history`, `settings` views).
 - Popup quick controls for active/focused runner.
-- Options page (same settings model, open from Chrome extensions page).
+- Options page (same shared settings model).
 - Focus mini-controller (content script pill on web pages when focus mode is active).
 
 ## 3) What changed in Feature List 3
-Feature 3 focused on low-complexity UX polish without architecture rewrites.
+Feature 3 focused on practical UX polish without architecture rewrites.
 
 Delivered:
 - Runner Home progress indicators and elapsed runtime display.
 - Better empty states with direct start/manage actions.
-- Routine search and compact/expand link previews.
+- Routine search and compact/expand link previews (later superseded by Feature 6 card redesign).
 - Quick focus action for already-running routines.
 - Editor improvements:
   - Single link input accepts one URL, comma-separated URLs, or one-per-line paste.
@@ -49,22 +51,18 @@ Delivered:
 - Accessibility/status polish for sidepanel + popup.
 
 ## 4) What changed in Feature List 4
-Feature 4 added settings + focus-mode controller + reliability hardening.
+Feature 4 added settings, focus mini-controller, and reliability hardening.
 
 Delivered:
-- Typed shared settings model in `chrome.storage.local`:
-  - `staticTheme`: `system | light | dark`
-  - `defaultRunMode`: `same-tab | tab-group`
-  - `confirmBeforeStop`: boolean
-  - `focusModeEnabled`: boolean
-- Options page entrypoint (`entrypoints/options/*`) using same settings model/hook.
-- Sidepanel in-app settings view and popup settings open flow into sidepanel settings.
+- Typed shared settings model in `chrome.storage.local`.
+- Options page entrypoint (`entrypoints/options/*`) using shared settings model/hook.
+- Sidepanel in-app settings flow.
 - Focus mini-controller content script:
   - Previous/Next controls
   - Return to sidebar action
   - Vertical drag with persisted Y offset
 - Background message bridge for controller actions/state sync.
-- Theme split (finalized after iteration):
+- Theme split:
   - Sidebar/popup/options use static extension theme (`system/light/dark`).
   - Mini-controller uses page-adaptive accent styling only.
 - Stability hardening:
@@ -72,7 +70,7 @@ Delivered:
   - Sidebar-open fallback path in controller flow.
 
 ## 5) What changed in Feature List 5
-Feature 5 delivered Tier 1 reliability + foundation work.
+Feature 5 delivered reliability and run-history foundations.
 
 Phase A (cleanup + resilience) shipped:
 - Sidepanel decomposition into view components (`views/*`) and shared UI pieces.
@@ -81,17 +79,47 @@ Phase A (cleanup + resilience) shipped:
 - Shared helpers for elapsed time and input target detection.
 - Runner lifecycle listeners for tab close and tab reorder.
 - Popup elapsed time display.
-- Tab-group step restoration now inserts new tabs in the correct step order.
+- Tab-group step restoration inserts tabs in the correct step order.
 
 Phase B (run history foundation) shipped:
 - Dexie schema v2 with `runs` and `runEvents` tables.
 - Run start/stop + step switch logging.
-- `lastRunAt` on routines and “recently run” ordering.
+- `lastRunAt` on routines and recently-run ordering.
 - Run finalization on stop, tab close, and group removal.
 
-## 6) Tech stack and runtime
+## 6) What changed in Feature List 6
+Feature 6 delivered runtime simplification plus history/stats UI.
+
+Phase A shipped:
+- Removed single-tab runtime path from sessions/navigation.
+- Added `tabLoadMode` (`eager` / `lazy`) as a setting.
+- Updated session model to `tabIds: Array<number | null>` for lazy placeholders.
+- Redesigned routines view with accordion cards, favicon strip, and inline actions.
+- Added import-from-tabs dialog in editor workflow.
+- Reworked settings UIs with shadcn controls.
+
+Phase B shipped:
+- Added sidepanel history route: `#/history` and filtered route `#/history?routine=<id>`.
+- Added history entry points from runner/routines/popup.
+- Added stats summary cards:
+  - Total runs
+  - Total time
+  - Completion rate
+- Added grouped run list (`Today`, `Yesterday`, `This week`, `Earlier`) with step progress and run status badges.
+
+## 7) Toolchain/runtime updates after Feature 6
+Recent tooling commit (`9ad6fe5`) added:
+- React Compiler via Vite Babel plugin (`babel-plugin-react-compiler`).
+- Compiler-aware linting with ESLint flat config and `eslint-plugin-react-hooks` latest recommended set.
+- New scripts:
+  - `bun run lint`
+  - `bun run lint:fix`
+
+## 8) Tech stack and runtime
 - WXT + React + TypeScript + React Router (HashRouter)
 - Tailwind v4 + shadcn/ui
+- React Compiler enabled in Vite build pipeline
+- ESLint flat config with React Hooks/compiler diagnostics
 - Dexie/IndexedDB for routines data
 - `browser.storage.session` for runner/focus ephemeral state
 - `browser.storage.local` for app settings and controller accent cache
@@ -99,22 +127,23 @@ Phase B (run history foundation) shipped:
 Commands:
 - `bun install`
 - `bun run dev`
+- `bun run lint`
 - `bun run compile`
 - `bun run build`
 
-## 7) Extension architecture (current)
+## 9) Extension architecture (current)
 Entrypoints:
 - `entrypoints/background.ts`
   - Sidepanel behavior setup
   - Tab-group removal, tab close, and tab reorder listeners
   - Focus controller runtime message bridge
 - `entrypoints/sidepanel/App.tsx`
-  - Shell + HashRouter routes
+  - Shell + HashRouter routes (`runner`, `routines`, `editor`, `history`, `settings`)
   - Error boundary recovery
 - `entrypoints/sidepanel/views/*`
-  - `RunnerHomeView`, `RoutinesView`, `EditorView`, `SettingsView`
+  - `RunnerHomeView`, `RoutinesView`, `EditorView`, `HistoryView`, `SettingsView`
 - `entrypoints/popup/App.tsx`
-  - Quick controls + open sidepanel/settings
+  - Quick controls + open sidepanel settings/history
   - Elapsed time display
 - `entrypoints/options/App.tsx`
   - Dedicated options UI wired to shared settings
@@ -127,12 +156,12 @@ Core libs:
 - `lib/session.ts` - active sessions, focused runner, focus mode, sidepanel view requests
 - `lib/settings.ts` - settings schema/defaults/read-write-subscribe
 - `lib/use-settings.ts` - React hook for synced settings state
-- `lib/adaptive-accent.ts` - adaptive accent extraction/cache utilities used by controller
-- `lib/run-history.ts` - run tracking (runs + run events)
+- `lib/run-history.ts` - run tracking (`runs` + `runEvents`)
 - `lib/dom.ts` - shared input target detection
 - `lib/time.ts` - shared elapsed time formatting
+- `lib/url.ts` - favicon URL + compact URL display helpers
 
-## 8) Data model summary
+## 10) Data model summary
 ### IndexedDB (`routines`, `runs`, `runEvents`)
 ```ts
 interface Routine {
@@ -152,7 +181,7 @@ interface RoutineRun {
   stepsCompleted: number;
   totalSteps: number;
   completedFull: boolean;
-  mode: 'same-tab' | 'tab-group';
+  mode: 'same-tab' | 'tab-group'; // historical compatibility
   durationMs: number | null;
   stopReason?: 'user-stop' | 'tabs-closed' | 'group-removed' | 'system-stop' | 'unknown';
 }
@@ -171,11 +200,12 @@ interface RoutineRunEvent {
 ```ts
 interface RoutineSession {
   routineId: number;
-  mode: 'same-tab' | 'tab-group';
+  mode: 'tab-group';
+  loadMode: 'eager' | 'lazy';
   currentIndex: number;
   tabId: number | null;
   tabGroupId: number | null;
-  tabIds: number[];
+  tabIds: Array<number | null>;
   startedAt: number;
   runId?: number;
 }
@@ -192,13 +222,13 @@ Session keys:
 ```ts
 interface AppSettings {
   staticTheme: 'light' | 'dark' | 'system';
-  defaultRunMode: 'same-tab' | 'tab-group';
+  tabLoadMode: 'eager' | 'lazy';
   confirmBeforeStop: boolean;
   focusModeEnabled: boolean;
 }
 ```
 
-## 9) Permissions and APIs
+## 11) Permissions and APIs
 Current effective MV3 permissions:
 - `storage`
 - `tabGroups`
@@ -214,14 +244,13 @@ Main APIs used:
 - `browser.storage.session`
 - `browser.storage.onChanged`
 
-## 10) Known limitations
+## 12) Known limitations
 - No automated unit/integration test suite yet.
-- No routine history analytics UI yet (data only).
 - No scheduling, folders, or sharing.
 - No omnibox/new-tab integrations.
 - Focus controller intentionally kept minimal (no expanded/detailed mode).
 
-## 11) Feature list history (1–5)
+## 13) Feature list history (1-6)
 Feature List 1 (UI foundation + workflow upgrades):
 - Adopted shadcn-style component base + Tailwind v4 setup.
 - Added light/dark theme toggle and persistence.
@@ -235,7 +264,7 @@ Feature List 2 (runner-first UX + multi-runner lifecycle):
 
 Feature List 3 (sidepanel UX polish):
 - Runner Home progress + elapsed time + empty states.
-- Routine search, compact/expand link previews, quick focus action.
+- Search/previews/focus actions in routines list (later refined in Feature 6).
 - Editor bulk URL paste and clearer drag/drop feedback.
 - Accessibility + transient feedback polish.
 
@@ -251,40 +280,38 @@ Feature List 5 (decomposition + resilience + history foundation):
 - Runner resilience: tab close/reorder sync + ordered tab restoration.
 - Run history foundation: runs/runEvents tables, start/stop/step logging, `lastRunAt`.
 
-## 12) Improvements doc alignment (done vs pending)
+Feature List 6 (runtime simplification + history/stats UI):
+- Removed single-tab runtime path and added `tabLoadMode` (`eager`/`lazy`).
+- Redesigned routines/editor/settings UX around shadcn components.
+- Added history route, stats cards, routine filter, grouped run insights, and popup history entry point.
+
+## 14) Improvements doc alignment (done vs pending)
 Reference doc: `docs/extra/WEBROUTINES_IMPROVEMENTS_V2.md`
 
 Substantially done already:
 - Focus mini-controller MVP exists (compact pill + sidebar return + drag/persist).
 - Settings foundation and options page exist.
-- Theme system now has stable extension theming and adaptive mini-controller behavior.
-- Runner Home and editor got practical UX upgrades (Feature 3).
+- Theme split is in place (static extension theme + adaptive controller).
+- Rich routine cards and favicon strip are shipped.
+- Routine history/stats UI is shipped.
+- Error boundary/recovery framework is shipped.
 
 Still pending from improvements doc:
-- Rich routine cards (favicon strip, richer metadata).
-- Tab lifecycle resilience listeners (`tabs.onUpdated` divergence handling).
-- Routine history/stats UI.
+- Additional tab divergence/resilience signals (`tabs.onUpdated` drift handling).
 - Folders/categories.
 - Command palette.
 - Omnibox/new-tab integrations.
 - Sharing flows (markdown/link/QR).
 - Per-step config (notes/skip/auto-advance).
 - Onboarding flow.
-- Error boundary/recovery framework.
 
-## 13) Pragmatic next explorations (added for future planning)
-Suggested to explore next (in this order):
+## 15) Pragmatic next explorations
+Suggested next (in order):
 1. Session resilience hardening:
-   - Add minimal `tabs.onUpdated` divergence marker (without heavy UI first pass).
-2. Routine history UI:
-   - Recent runs list + completion stats.
-3. Command palette in sidepanel:
-   - Start routine, focus routine, stop routine, open settings.
-4. Routine card enrichment:
-   - Favicon strip + last run metadata.
-
-Nice-to-have but lower priority for now:
-- Folders/categories
-- Sharing/QR workflows
-- Omnibox/new-tab overrides
-- Per-step auto-advance and notes
+   - Add minimal `tabs.onUpdated` divergence marker.
+2. Command palette in sidepanel:
+   - Start routine, focus routine, stop routine, open settings/history.
+3. Structured organization:
+   - Folders/categories + lightweight grouping UX.
+4. Per-step intelligence:
+   - Notes/skip/optional auto-advance for advanced workflows.

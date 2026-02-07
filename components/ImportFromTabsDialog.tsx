@@ -125,7 +125,7 @@ export function ImportFromTabsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={!busy}>
+      <DialogContent className="sm:max-w-[22rem]" showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>Import from open tabs</DialogTitle>
           <DialogDescription>
@@ -162,11 +162,17 @@ export function ImportFromTabsDialog({
           ))}
         </div>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-row gap-2 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            className="flex-1"
+            variant="outline"
+            disabled={busy}
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
-          <Button type="button" disabled={busy} onClick={() => void onConfirm()}>
+          <Button type="button" className="flex-1" disabled={busy} onClick={() => void onConfirm()}>
             {selectedUrls.length > 0 ? `Add ${selectedUrls.length} selected` : 'Close'}
           </Button>
         </DialogFooter>
