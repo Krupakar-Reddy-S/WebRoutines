@@ -14,6 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=DM+Sans:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="assets/layout.js" defer></script>
     <script>
       tailwind.config = {
         theme: {
@@ -43,23 +44,10 @@
       .feat-card:hover { border-color: #34d399; background-color: rgba(52,211,153,0.04); }
     </style>
   </head>
-  <body class="bg-base font-body text-fg min-h-screen">
+  <body class="bg-base font-body text-fg min-h-screen" data-base="." data-page="home">
     <div class="pointer-events-none fixed inset-x-0 top-0 h-[500px] bg-[radial-gradient(ellipse_60%_50%_at_50%_-10%,rgba(52,211,153,0.08),transparent)]"></div>
 
-    <header class="relative z-10 border-b border-surface-border">
-      <div class="mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 py-4">
-        <a href="index.html" class="flex items-center gap-2.5 font-display text-base font-semibold tracking-tight text-fg">
-          <img src="assets/icon-placeholder-128.svg" alt="" class="h-7 w-7" />
-          WebRoutines
-        </a>
-        <nav class="flex items-center gap-1 text-sm">
-          <a href="index.html" class="rounded-md bg-surface px-3 py-1.5 text-fg transition-colors hover:bg-surface hover:text-fg">Home</a>
-          <a href="docs/index.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg">Docs</a>
-          <a href="privacy.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg">Privacy</a>
-          <a href="https://github.com" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg">GitHub</a>
-        </nav>
-      </div>
-    </header>
+    <div id="site-header"></div>
 
     <main class="relative z-10 pb-8 pt-8">
       <div class="mx-auto w-full max-w-[1400px] px-6">
@@ -138,14 +126,6 @@
       </div>
     </main>
 
-    <footer class="relative z-10 border-t border-surface-border">
-      <div class="mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 py-3 text-xs text-fg-faint">
-        <span>&copy; 2026 WebRoutines</span>
-        <div class="flex items-center gap-1">
-          <span class="h-1 w-1 rounded-full bg-accent/50"></span>
-          <span>All data stays in your browser</span>
-        </div>
-      </div>
-    </footer>
+    <div id="site-footer"></div>
   </body>
 </html>
