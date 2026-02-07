@@ -125,10 +125,73 @@ export default defineContentScript({
     let settings = await safeGetSettings();
     let currentAccent: string | null = null;
     let extensionContextInvalid = false;
+    let disposed = false;
+    let pollIntervalId: number | null = null;
 
     let dragStartY = 0;
     let dragStartOffset = 0;
     let dragging = false;
+
+    function isRuntimeContextAvailable(): boolean {
+      try {
+        return Boolean(browser?.runtime?.id);
+      } catch {
+        return false;
+      }
+    }
+
+    function disposeController() {
+      if (disposed) {
+        return;
+      }
+
+      disposed = true;
+      if (pollIntervalId !== null) {
+        window.clearInterval(pollIntervalId);
+        pollIntervalId = null;
+      }
+
+      browser.storage.onChanged.removeListener(storageListener);
+      window.removeEventListener('mousemove', onDragMove);
+      window.removeEventListener('mouseup', onDragEnd);
+      window.removeEventListener('resize', onResize);
+    }
+
+    function stopPolling() {
+      if (pollIntervalId === null) {
+        return;
+      }
+
+      window.clearInterval(pollIntervalId);
+      pollIntervalId = null;
+    }
+
+    function startPolling() {
+      if (pollIntervalId !== null || extensionContextInvalid || disposed) {
+        return;
+      }
+
+      pollIntervalId = window.setInterval(() => {
+        if (!isRuntimeContextAvailable()) {
+          markExtensionContextInvalid();
+          return;
+        }
+
+        void refresh().catch(() => {
+          // Guard against unhandled rejections from background/context teardown.
+        });
+      }, 1500);
+    }
+
+    function markExtensionContextInvalid() {
+      extensionContextInvalid = true;
+      busy = false;
+      state = null;
+      controllerNotice = null;
+      stopPolling();
+      disposeController();
+      render();
+    }
 
     function shouldRender(): boolean {
       if (!state?.focusModeActive || !state.focusedSession || !state.focusedRoutine) {
@@ -152,11 +215,13 @@ export default defineContentScript({
 
     function render() {
       if (!shouldRender()) {
+        stopPolling();
         unmount();
         container.innerHTML = '';
         return;
       }
 
+      startPolling();
       mount();
 
       const focusedSession = state!.focusedSession!;
@@ -218,31 +283,42 @@ export default defineContentScript({
         return;
       }
 
+      if (!isRuntimeContextAvailable()) {
+        markExtensionContextInvalid();
+        return;
+      }
+
       busy = true;
       controllerNotice = null;
       render();
 
-      const response = await sendControllerMessage(message);
-      if (response === null) {
-        extensionContextInvalid = true;
+      try {
+        const response = await sendControllerMessage(message);
+        if (response === null) {
+          markExtensionContextInvalid();
+          return;
+        }
+
+        if (response?.ok && response.state) {
+          state = response.state;
+        } else if (response?.error) {
+          controllerNotice = response.error;
+        } else {
+          controllerNotice = 'Action failed. Try opening sidepanel from extension icon.';
+        }
+
+        settings = await safeGetSettings();
+      } catch (error) {
+        if (isExtensionContextInvalidError(error)) {
+          markExtensionContextInvalid();
+          return;
+        }
+
+        controllerNotice = 'Unable to contact extension controller.';
+      } finally {
         busy = false;
-        state = null;
-        controllerNotice = null;
         render();
-        return;
       }
-
-      if (response?.ok && response.state) {
-        state = response.state;
-      } else if (response?.error) {
-        controllerNotice = response.error;
-      } else {
-        controllerNotice = 'Action failed. Try opening sidepanel from extension icon.';
-      }
-
-      settings = await safeGetSettings();
-      busy = false;
-      render();
     }
 
     function onDragStart(event: MouseEvent) {
@@ -276,32 +352,48 @@ export default defineContentScript({
         return;
       }
 
-      settings = await safeGetSettings();
-      await refreshAdaptiveAccent();
-
-      const response = await sendControllerMessage({ type: 'focus-controller:get-state' });
-      if (response === null) {
-        extensionContextInvalid = true;
-        state = null;
-        controllerNotice = null;
-        render();
+      if (!isRuntimeContextAvailable()) {
+        markExtensionContextInvalid();
         return;
       }
 
-      if (response?.ok && response.state) {
-        state = response.state;
-        controllerNotice = null;
-      } else {
-        state = null;
-        if (response?.error) {
-          controllerNotice = response.error;
-        }
-      }
+      try {
+        settings = await safeGetSettings();
+        await refreshAdaptiveAccent();
 
-      render();
+        const response = await sendControllerMessage({ type: 'focus-controller:get-state' });
+        if (response === null) {
+          markExtensionContextInvalid();
+          return;
+        }
+
+        if (response?.ok && response.state) {
+          state = response.state;
+          controllerNotice = null;
+        } else {
+          state = null;
+          if (response?.error) {
+            controllerNotice = response.error;
+          }
+        }
+      } catch (error) {
+        if (isExtensionContextInvalidError(error)) {
+          markExtensionContextInvalid();
+          return;
+        }
+
+        state = null;
+        controllerNotice = 'Unable to contact extension controller.';
+      } finally {
+        render();
+      }
     }
 
     async function sendControllerMessage(message: unknown): Promise<FocusControllerResponse | null> {
+      if (!isRuntimeContextAvailable()) {
+        return null;
+      }
+
       try {
         return normalizeControllerResponse(
           await browser.runtime.sendMessage(message),
@@ -326,6 +418,11 @@ export default defineContentScript({
       changes,
       areaName,
     ) => {
+      if (!isRuntimeContextAvailable()) {
+        markExtensionContextInvalid();
+        return;
+      }
+
       if (areaName === 'local' && CONTROLLER_Y_KEY in changes) {
         const nextY = changes[CONTROLLER_Y_KEY]?.newValue;
         if (typeof nextY === 'number') {
@@ -340,29 +437,32 @@ export default defineContentScript({
           || 'focusedRoutineId' in changes
           || 'focusModeActive' in changes
         ) {
-          void refresh();
+          void refresh().catch(() => {
+            // Guard against unhandled rejections from background/context teardown.
+          });
         }
       }
 
       if (areaName === 'local' && SETTINGS_STORAGE_KEY in changes) {
-        void refresh();
+        void refresh().catch(() => {
+          // Guard against unhandled rejections from background/context teardown.
+        });
       }
     };
+
+    function onResize() {
+      yOffset = clampYOffset(yOffset);
+      render();
+    }
 
     browser.storage.onChanged.addListener(storageListener);
     window.addEventListener('mousemove', onDragMove);
     window.addEventListener('mouseup', onDragEnd);
-    window.addEventListener('resize', () => {
-      yOffset = clampYOffset(yOffset);
-      render();
+    window.addEventListener('resize', onResize);
+
+    await refresh().catch(() => {
+      // Ignore initial refresh failure in restricted/invalidation scenarios.
     });
-
-    // Fallback polling keeps controller in sync even if session change events are not exposed.
-    window.setInterval(() => {
-      void refresh();
-    }, 1500);
-
-    await refresh();
   },
 });
 

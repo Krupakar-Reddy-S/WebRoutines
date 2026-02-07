@@ -5,9 +5,10 @@ This is a current technical brief for WebRoutines after Feature List 6 implement
 
 ## 1) Current delivery state
 Last major implementation commit:
-- `b072cac` (`2026-02-07`) - Feature 6 Phase B: history route, stats, and run insights UI
+- `d0e735c` (`2026-02-07`) - Cleanup + UX hardening across editor/history/shortcuts/favicon/CSP flows
 
 Recent milestone commits:
+- `b072cac` (`2026-02-07`) - Feature 6 Phase B: history route, stats, and run insights UI
 - `cea068a` (`2026-02-07`) - Feature 6 Phase A: tab-group simplification and sidepanel UX overhaul
 - `9ad6fe5` (`2026-02-07`) - React Compiler enablement + compiler-aware linting setup
 
@@ -106,6 +107,26 @@ Phase B shipped:
   - Total time
   - Completion rate
 - Added grouped run list (`Today`, `Yesterday`, `This week`, `Earlier`) with step progress and run status badges.
+
+Post-Phase-B cleanup shipped (`d0e735c`):
+- Editor UX hardening:
+  - Unsaved-change leave confirmation with change summary.
+  - Enter in add-link field adds links only (explicit save required).
+  - Dialog-based link removal and compact, consistent dialog sizing/buttons.
+- Navigation shortcuts overhaul:
+  - Added extension commands for previous/next step.
+  - Removed hardcoded Alt+Shift key listeners from popup/sidepanel.
+  - Dynamic shortcut labels surfaced in settings, runner home, and popup.
+- History improvements:
+  - Routine/status filters moved beside summary header.
+  - Added run status filter (`all`, `in progress`, `complete`, `partial`).
+  - Added pagination with URL-backed page state.
+- Favicon/CSP cleanup:
+  - `_favicon` path usage retained for extension rendering.
+  - CSP image hosts expanded for Google favicon redirect hosts (`*.gstatic.com`).
+
+Post-commit stabilization (current working tree):
+- Focus controller content script hardened to avoid unhandled promise rejections when extension context is invalidated during reload/update.
 
 ## 7) Toolchain/runtime updates after Feature 6
 Recent tooling commit (`9ad6fe5`) added:
