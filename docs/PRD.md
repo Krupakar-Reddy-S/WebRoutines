@@ -44,6 +44,7 @@ Users who revisit the same sets of pages daily need a faster, deterministic way 
 - Build/runtime: WXT + Bun.
 - UI: React + TypeScript.
 - Routing: HashRouter in side panel.
+- External docs/landing surface: plain static HTML pages in `site/` (Tailwind CDN, no build step, no runtime coupling).
 - Module boundaries:
   - `core/`: pure domain logic.
   - `adapters/browser/`: wrappers for browser-specific behavior.
@@ -133,6 +134,7 @@ Permissions in manifest:
 - Behavior changes must update both in the same PR.
 - Feature-level execution logs belong in `docs/feature-list-*.md`.
 - `docs/extra/` is for external research/context and is not authoritative for runtime behavior.
+- `site/` is a static external docs/landing surface and does not define extension runtime behavior.
 
 ## Progress log
 - 2026-02-06: Core MVP implementation completed (foundation, data, side panel, runner, popup, validation).
@@ -141,3 +143,4 @@ Permissions in manifest:
 - 2026-02-07: Feature 7 Phase A completed (modularity and performance refactor).
 - 2026-02-07: Feature 7 Phase B completed (unit/component/e2e local testing stack).
 - 2026-02-07: Feature 7 Phase C docs cleanup started (README/PRD sync + AGENTS.md governance).
+- 2026-02-07: Feature 8 completed (static `/site` landing/docs/privacy scaffold; deployment setup deferred).

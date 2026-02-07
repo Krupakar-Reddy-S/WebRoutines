@@ -50,10 +50,17 @@ bun run build
 
 Load `.output/chrome-mv3` in `chrome://extensions` with Developer mode enabled.
 
+## Static site
+- Path: `site/`
+- Purpose: static landing/docs/privacy pages for project-facing documentation.
+- Stack: plain HTML with Tailwind CDN (no framework, no build pipeline).
+- Deployment: GitHub Pages setup is intentionally deferred in this phase.
+
 ## Docs map
 - `docs/PRD.md`: current product + architecture source of truth.
 - `docs/feature-list-*.md`: phased implementation history/plans.
 - `docs/extra/`: optional external/reference context for AI chat and research; not authoritative runtime source of truth.
+- `site/`: external landing/docs surface (non-runtime, static pages).
 
 ## Docs governance
 Behavior changes must update `README.md` and `docs/PRD.md` in the same PR.

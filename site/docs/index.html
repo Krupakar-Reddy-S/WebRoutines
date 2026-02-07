@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebRoutines — Docs</title>
+    <meta name="description" content="Documentation for WebRoutines: creating routines, running them, settings, shortcuts, and data handling." />
+    <meta property="og:title" content="WebRoutines Docs" />
+    <meta property="og:description" content="Complete guide for WebRoutines: routines, runners, focus mode, history, and settings." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="../assets/og-placeholder.svg" />
+    <link rel="icon" href="../assets/icon-placeholder-128.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=DM+Sans:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['Outfit', 'sans-serif'],
+              body: ['DM Sans', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              surface: { DEFAULT: '#111113', raised: '#1a1a1d', border: '#2a2a2e' },
+              accent: { DEFAULT: '#34d399', dim: '#059669', glow: 'rgba(52,211,153,0.08)' },
+              fg: { DEFAULT: '#ededef', muted: '#8b8b8e', faint: '#5a5a5d' },
+              base: '#050506',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      html { scrollbar-color: #2a2a2e #111113; }
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #2a2a2e; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #3a3a3e; }
+      .doc-section h3 { scroll-margin-top: 1.5rem; }
+      .nav-link { transition: color 0.15s, background-color 0.15s; }
+      .nav-link.active { color: #34d399; background-color: rgba(52,211,153,0.08); }
+    </style>
+  </head>
+  <body class="bg-base font-body text-fg">
+    <div class="flex h-screen flex-col">
+
+      <!-- Nav -->
+      <header class="shrink-0 border-b border-surface-border bg-base/80 backdrop-blur-sm sticky top-0 z-30">
+        <div class="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-3">
+          <a href="../index.html" class="flex items-center gap-2.5 font-display text-sm font-600 tracking-tight text-fg">
+            <img src="../assets/icon-placeholder-128.svg" alt="" class="h-6 w-6" />
+            WebRoutines
+          </a>
+          <nav class="flex items-center gap-1 text-sm">
+            <a href="../index.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:text-fg hover:bg-surface">Home</a>
+            <a href="index.html" class="rounded-md px-3 py-1.5 text-accent bg-accent/8">Docs</a>
+            <a href="../privacy.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:text-fg hover:bg-surface">Privacy</a>
+          </nav>
+        </div>
+      </header>
+
+      <!-- Body: sidebar + content -->
+      <div class="flex flex-1 overflow-hidden">
+
+        <!-- Sidebar -->
+        <aside class="hidden w-[260px] shrink-0 overflow-y-auto border-r border-surface-border bg-surface/40 p-5 lg:block">
+          <p class="text-[10px] font-mono uppercase tracking-[0.2em] text-fg-faint">Documentation</p>
+
+          <nav class="mt-4 space-y-0.5" id="sidebar-nav">
+            <a href="#getting-started" class="nav-link block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Getting started</a>
+            <a href="#routines" class="nav-link block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Routines</a>
+            <a href="#runners" class="nav-link block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Runners</a>
+            <a href="#tab-loading" class="nav-link block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Tab loading modes</a>
+            <a href="#focus-mode" class="nav-link block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Focus mode</a>
+            <a href="#history" class="nav-link block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Run history</a>
+            <a href="#settings" class="nav-link block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Settings</a>
+            <a href="#shortcuts" class="nav-link block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Keyboard shortcuts</a>
+            <a href="#import-export" class="nav-link block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Import &amp; export</a>
+            <a href="#data" class="nav-link block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Data &amp; storage</a>
+          </nav>
+
+          <div class="mt-6 rounded-lg border border-surface-border bg-surface p-3">
+            <p class="text-[10px] font-mono uppercase tracking-[0.15em] text-fg-faint">Version</p>
+            <p class="mt-1 text-xs text-fg-muted">Post–Feature List 7</p>
+            <p class="mt-0.5 text-xs text-fg-faint">Chrome MV3 · Bun · WXT</p>
+          </div>
+        </aside>
+
+        <!-- Mobile sidebar toggle -->
+        <button id="mobile-menu-btn" class="fixed bottom-5 right-5 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-base shadow-lg lg:hidden" aria-label="Toggle navigation">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+
+        <!-- Mobile nav overlay -->
+        <div id="mobile-nav" class="fixed inset-0 z-50 hidden bg-base/90 backdrop-blur-sm lg:hidden">
+          <div class="mx-auto max-w-sm p-6 pt-16">
+            <button id="mobile-close-btn" class="absolute top-5 right-5 text-fg-muted" aria-label="Close navigation">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <nav class="space-y-1" id="mobile-sidebar-nav">
+              <a href="#getting-started" class="block rounded-md px-3 py-2.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Getting started</a>
+              <a href="#routines" class="block rounded-md px-3 py-2.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Routines</a>
+              <a href="#runners" class="block rounded-md px-3 py-2.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Runners</a>
+              <a href="#tab-loading" class="block rounded-md px-3 py-2.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Tab loading modes</a>
+              <a href="#focus-mode" class="block rounded-md px-3 py-2.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Focus mode</a>
+              <a href="#history" class="block rounded-md px-3 py-2.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Run history</a>
+              <a href="#settings" class="block rounded-md px-3 py-2.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Settings</a>
+              <a href="#shortcuts" class="block rounded-md px-3 py-2.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Keyboard shortcuts</a>
+              <a href="#import-export" class="block rounded-md px-3 py-2.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Import &amp; export</a>
+              <a href="#data" class="block rounded-md px-3 py-2.5 text-sm text-fg-muted hover:text-fg hover:bg-surface">Data &amp; storage</a>
+            </nav>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <main id="docs-content" class="flex-1 overflow-y-auto scroll-smooth">
+          <div class="mx-auto max-w-3xl px-6 py-8 lg:px-10">
+
+            <!-- Getting Started -->
+            <section id="getting-started" class="doc-section">
+              <h3 class="font-display text-2xl font-700 tracking-tight text-fg">Getting started</h3>
+              <p class="mt-3 text-fg-muted leading-relaxed">
+                WebRoutines is a Chrome extension that turns your daily browsing into repeatable, ordered workflows. Instead of opening the same sites manually each morning, you define a routine once and run it whenever you need it.
+              </p>
+
+              <div class="mt-5 rounded-xl border border-surface-border bg-surface p-5">
+                <p class="text-xs font-mono uppercase tracking-[0.15em] text-accent">Install from source</p>
+                <ol class="mt-3 space-y-2.5 text-sm text-fg-muted">
+                  <li class="flex gap-3">
+                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface-raised text-[10px] font-mono text-fg-faint">1</span>
+                    <span>Clone the repository and run <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-xs text-fg">bun install</code></span>
+                  </li>
+                  <li class="flex gap-3">
+                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface-raised text-[10px] font-mono text-fg-faint">2</span>
+                    <span>Build the extension with <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-xs text-fg">bun run build</code></span>
+                  </li>
+                  <li class="flex gap-3">
+                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface-raised text-[10px] font-mono text-fg-faint">3</span>
+                    <span>Open <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-xs text-fg">chrome://extensions</code> and enable Developer mode</span>
+                  </li>
+                  <li class="flex gap-3">
+                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface-raised text-[10px] font-mono text-fg-faint">4</span>
+                    <span>Click "Load unpacked" and select the <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-xs text-fg">.output/chrome-mv3</code> directory</span>
+                  </li>
+                  <li class="flex gap-3">
+                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface-raised text-[10px] font-mono text-fg-faint">5</span>
+                    <span>Pin the extension and open the side panel from the toolbar icon</span>
+                  </li>
+                </ol>
+              </div>
+
+              <p class="mt-4 text-sm text-fg-faint">For development, use <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-xs text-fg-muted">bun run dev</code> for hot-reload during development.</p>
+            </section>
+
+            <hr class="my-10 border-surface-border" />
+
+            <!-- Routines -->
+            <section id="routines" class="doc-section">
+              <h3 class="font-display text-2xl font-700 tracking-tight text-fg">Routines</h3>
+              <p class="mt-3 text-fg-muted leading-relaxed">
+                A routine is an ordered list of URLs you want to visit as a group. Think of it as a playlist for websites — your morning news sites, your work dashboards, your social feeds.
+              </p>
+
+              <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-lg border border-surface-border bg-surface p-4">
+                  <p class="text-xs font-mono uppercase tracking-[0.15em] text-accent">Creating</p>
+                  <p class="mt-2 text-sm text-fg-muted leading-relaxed">Open the side panel, go to Routines, and tap the + button. Give it a name and add URLs one at a time, or paste multiple URLs at once (comma-separated or one per line).</p>
+                </div>
+                <div class="rounded-lg border border-surface-border bg-surface p-4">
+                  <p class="text-xs font-mono uppercase tracking-[0.15em] text-accent">Editing</p>
+                  <p class="mt-2 text-sm text-fg-muted leading-relaxed">Expand a routine card to see its links. Drag handles to reorder steps. Use the overflow menu on each link to remove it. Open the full editor for bulk changes.</p>
+                </div>
+              </div>
+
+              <div class="mt-4 rounded-lg border border-surface-border bg-surface/60 p-4">
+                <p class="text-sm text-fg-muted leading-relaxed">
+                  <span class="font-medium text-fg">URL normalization:</span> WebRoutines automatically adds <code class="rounded bg-surface-raised px-1 py-0.5 font-mono text-xs">https://</code> if you enter a bare domain. Duplicate URLs within the same routine are detected and skipped with a notification.
+                </p>
+              </div>
+
+              <div class="mt-4 rounded-lg border border-accent/20 bg-accent/5 p-4">
+                <p class="text-sm text-fg-muted leading-relaxed">
+                  <span class="font-medium text-accent">Favicon strip:</span> Each routine card shows favicons for the first several links, giving you a visual preview of what's in the routine without expanding it.
+                </p>
+              </div>
+            </section>
+
+            <hr class="my-10 border-surface-border" />
+
+            <!-- Runners -->
+            <section id="runners" class="doc-section">
+              <h3 class="font-display text-2xl font-700 tracking-tight text-fg">Runners</h3>
+              <p class="mt-3 text-fg-muted leading-relaxed">
+                A runner is an active routine session. When you start a routine, WebRoutines creates a Chrome tab group and opens your links inside it. You then navigate through the steps using the side panel controls, the popup, keyboard shortcuts, or the focus controller.
+              </p>
+
+              <div class="mt-5 rounded-xl border border-surface-border bg-surface p-5">
+                <p class="text-xs font-mono uppercase tracking-[0.15em] text-accent">Runner controls</p>
+                <div class="mt-3 space-y-2 text-sm text-fg-muted">
+                  <div class="flex items-start gap-3">
+                    <span class="shrink-0 rounded bg-surface-raised px-2 py-0.5 font-mono text-xs text-fg-faint">Prev</span>
+                    <span>Move to the previous step in the routine.</span>
+                  </div>
+                  <div class="flex items-start gap-3">
+                    <span class="shrink-0 rounded bg-surface-raised px-2 py-0.5 font-mono text-xs text-fg-faint">Next</span>
+                    <span>Move to the next step. In lazy mode, this creates the tab if it hasn't been loaded yet.</span>
+                  </div>
+                  <div class="flex items-start gap-3">
+                    <span class="shrink-0 rounded bg-surface-raised px-2 py-0.5 font-mono text-xs text-fg-faint">Jump</span>
+                    <span>Jump directly to any loaded step by clicking its indicator dot.</span>
+                  </div>
+                  <div class="flex items-start gap-3">
+                    <span class="shrink-0 rounded bg-surface-raised px-2 py-0.5 font-mono text-xs text-fg-faint">Stop</span>
+                    <span>End the runner session and close the tab group.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 rounded-lg border border-surface-border bg-surface/60 p-4">
+                <p class="text-sm text-fg-muted leading-relaxed">
+                  <span class="font-medium text-fg">Multiple runners:</span> You can run several routines at the same time — each gets its own tab group. One runner is "focused" at a time, which is the one controlled by the popup and keyboard shortcuts. Switch focus from the side panel.
+                </p>
+              </div>
+
+              <div class="mt-4 rounded-lg border border-surface-border bg-surface/60 p-4">
+                <p class="text-sm text-fg-muted leading-relaxed">
+                  <span class="font-medium text-fg">Session resilience:</span> If you close a tab that's part of a routine, WebRoutines updates the session automatically — removing that step and advancing to the next available tab. If all tabs in a routine are closed, the runner stops. If tabs are reordered in Chrome, the session syncs to match.
+                </p>
+              </div>
+            </section>
+
+            <hr class="my-10 border-surface-border" />
+
+            <!-- Tab Loading -->
+            <section id="tab-loading" class="doc-section">
+              <h3 class="font-display text-2xl font-700 tracking-tight text-fg">Tab loading modes</h3>
+              <p class="mt-3 text-fg-muted leading-relaxed">
+                When you start a routine, WebRoutines can create tabs in one of two ways. This is controlled by the "Tab Loading" setting.
+              </p>
+
+              <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-xl border border-surface-border bg-surface p-5">
+                  <div class="flex items-center gap-2">
+                    <span class="flex h-6 w-6 items-center justify-center rounded bg-accent/10 text-accent">
+                      <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </span>
+                    <p class="text-sm font-medium text-fg">Eager</p>
+                    <span class="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-mono text-accent">default</span>
+                  </div>
+                  <p class="mt-3 text-sm text-fg-muted leading-relaxed">All tabs are created at once when you start the routine. Every step is immediately clickable in any order. Best for short routines and when you want everything ready upfront.</p>
+                </div>
+                <div class="rounded-xl border border-surface-border bg-surface p-5">
+                  <div class="flex items-center gap-2">
+                    <span class="flex h-6 w-6 items-center justify-center rounded bg-surface-raised text-fg-faint">
+                      <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </span>
+                    <p class="text-sm font-medium text-fg">Lazy</p>
+                  </div>
+                  <p class="mt-3 text-sm text-fg-muted leading-relaxed">Only the first tab opens initially. Subsequent tabs are created as you navigate forward. Once loaded, a tab stays in the group. Best for long routines and saving resources.</p>
+                </div>
+              </div>
+            </section>
+
+            <hr class="my-10 border-surface-border" />
+
+            <!-- Focus Mode -->
+            <section id="focus-mode" class="doc-section">
+              <h3 class="font-display text-2xl font-700 tracking-tight text-fg">Focus mode</h3>
+              <p class="mt-3 text-fg-muted leading-relaxed">
+                When focus mode is enabled, a compact pill-shaped controller appears on each web page while a routine is running. It provides previous/next navigation and a button to return to the side panel — so you can stay on the page you're browsing without switching to the extension UI.
+              </p>
+
+              <div class="mt-5 rounded-xl border border-surface-border bg-surface p-5">
+                <p class="text-xs font-mono uppercase tracking-[0.15em] text-accent">Controller features</p>
+                <ul class="mt-3 space-y-2 text-sm text-fg-muted">
+                  <li class="flex items-start gap-2">
+                    <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent"></span>
+                    <span>Previous and next step buttons.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent"></span>
+                    <span>Return to side panel action.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent"></span>
+                    <span>Vertical drag to reposition — the Y offset persists between pages.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent"></span>
+                    <span>Page-adaptive accent styling — the controller picks up colors from the current page.</span>
+                  </li>
+                </ul>
+              </div>
+
+              <p class="mt-4 text-sm text-fg-faint">
+                The controller is injected as a Shadow DOM element so it doesn't interfere with page styles. Enable or disable focus mode from Settings.
+              </p>
+            </section>
+
+            <hr class="my-10 border-surface-border" />
+
+            <!-- History -->
+            <section id="history" class="doc-section">
+              <h3 class="font-display text-2xl font-700 tracking-tight text-fg">Run history</h3>
+              <p class="mt-3 text-fg-muted leading-relaxed">
+                WebRoutines records every run — when it started, how long it lasted, how many steps you completed, and how it ended. This data is stored locally and powers the History view in the side panel.
+              </p>
+
+              <div class="mt-5 grid gap-3 sm:grid-cols-3">
+                <div class="rounded-lg border border-surface-border bg-surface p-4 text-center">
+                  <p class="font-display text-2xl font-700 text-fg">47</p>
+                  <p class="mt-1 text-xs text-fg-faint">total runs</p>
+                </div>
+                <div class="rounded-lg border border-surface-border bg-surface p-4 text-center">
+                  <p class="font-display text-2xl font-700 text-fg">6h 23m</p>
+                  <p class="mt-1 text-xs text-fg-faint">total time</p>
+                </div>
+                <div class="rounded-lg border border-surface-border bg-surface p-4 text-center">
+                  <p class="font-display text-2xl font-700 text-accent">83%</p>
+                  <p class="mt-1 text-xs text-fg-faint">completion rate</p>
+                </div>
+              </div>
+              <p class="mt-2 text-center text-xs text-fg-faint italic">Example stats from the History view</p>
+
+              <div class="mt-5 rounded-lg border border-surface-border bg-surface/60 p-4">
+                <p class="text-sm text-fg-muted leading-relaxed">
+                  <span class="font-medium text-fg">Tracked per run:</span> routine name, start time, duration, steps completed vs total, whether the full routine was completed, stop reason (user stop, tabs closed, group removed).
+                </p>
+              </div>
+
+              <div class="mt-3 rounded-lg border border-surface-border bg-surface/60 p-4">
+                <p class="text-sm text-fg-muted leading-relaxed">
+                  <span class="font-medium text-fg">Filtering:</span> Use the dropdown in History to filter runs by routine. Stats recalculate to show metrics for the selected routine only.
+                </p>
+              </div>
+            </section>
+
+            <hr class="my-10 border-surface-border" />
+
+            <!-- Settings -->
+            <section id="settings" class="doc-section">
+              <h3 class="font-display text-2xl font-700 tracking-tight text-fg">Settings</h3>
+              <p class="mt-3 text-fg-muted leading-relaxed">
+                Settings are accessible from the side panel (gear icon) or the dedicated options page (<code class="rounded bg-surface-raised px-1 py-0.5 font-mono text-xs">chrome://extensions</code> → WebRoutines → Details → Extension options). Both surfaces share the same settings model.
+              </p>
+
+              <div class="mt-5 space-y-3">
+                <div class="rounded-lg border border-surface-border bg-surface p-4">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-medium text-fg">Theme</p>
+                    <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-[11px] text-fg-faint">system · light · dark</code>
+                  </div>
+                  <p class="mt-1.5 text-sm text-fg-muted">Controls the appearance of the side panel, popup, and options page. The focus controller uses page-adaptive styling independently.</p>
+                </div>
+
+                <div class="rounded-lg border border-surface-border bg-surface p-4">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-medium text-fg">Tab loading</p>
+                    <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-[11px] text-fg-faint">eager · lazy</code>
+                  </div>
+                  <p class="mt-1.5 text-sm text-fg-muted">Whether to open all routine tabs immediately or load them progressively as you navigate. See <a href="#tab-loading" class="text-accent hover:underline">Tab loading modes</a>.</p>
+                </div>
+
+                <div class="rounded-lg border border-surface-border bg-surface p-4">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-medium text-fg">Confirm before stopping</p>
+                    <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-[11px] text-fg-faint">on · off</code>
+                  </div>
+                  <p class="mt-1.5 text-sm text-fg-muted">When enabled, stopping a runner requires confirmation to prevent accidental tab group closure.</p>
+                </div>
+
+                <div class="rounded-lg border border-surface-border bg-surface p-4">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-medium text-fg">Focus mode</p>
+                    <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-[11px] text-fg-faint">on · off</code>
+                  </div>
+                  <p class="mt-1.5 text-sm text-fg-muted">Enables the floating controller on web pages during active routine runs. See <a href="#focus-mode" class="text-accent hover:underline">Focus mode</a>.</p>
+                </div>
+              </div>
+            </section>
+
+            <hr class="my-10 border-surface-border" />
+
+            <!-- Shortcuts -->
+            <section id="shortcuts" class="doc-section">
+              <h3 class="font-display text-2xl font-700 tracking-tight text-fg">Keyboard shortcuts</h3>
+              <p class="mt-3 text-fg-muted leading-relaxed">
+                Default shortcuts for the focused runner. These work globally in Chrome as long as the extension is installed.
+              </p>
+
+              <div class="mt-5 overflow-hidden rounded-xl border border-surface-border">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-surface-border bg-surface">
+                      <th class="px-4 py-3 text-left text-xs font-mono uppercase tracking-[0.12em] text-fg-faint">Action</th>
+                      <th class="px-4 py-3 text-left text-xs font-mono uppercase tracking-[0.12em] text-fg-faint">Shortcut</th>
+                      <th class="px-4 py-3 text-left text-xs font-mono uppercase tracking-[0.12em] text-fg-faint">Behavior</th>
+                    </tr>
+                  </thead>
+                  <tbody class="text-fg-muted">
+                    <tr class="border-b border-surface-border">
+                      <td class="px-4 py-3">Previous step</td>
+                      <td class="px-4 py-3"><kbd class="rounded bg-surface-raised px-2 py-0.5 font-mono text-xs text-fg">Alt+Shift+←</kbd></td>
+                      <td class="px-4 py-3">Navigate the focused runner one step back.</td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-3">Next step</td>
+                      <td class="px-4 py-3"><kbd class="rounded bg-surface-raised px-2 py-0.5 font-mono text-xs text-fg">Alt+Shift+→</kbd></td>
+                      <td class="px-4 py-3">Navigate the focused runner one step forward.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="mt-4 text-sm text-fg-faint">
+                You can customize these bindings at <code class="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-xs text-fg-muted">chrome://extensions/shortcuts</code>.
+              </p>
+            </section>
+
+            <hr class="my-10 border-surface-border" />
+
+            <!-- Import / Export -->
+            <section id="import-export" class="doc-section">
+              <h3 class="font-display text-2xl font-700 tracking-tight text-fg">Import &amp; export</h3>
+              <p class="mt-3 text-fg-muted leading-relaxed">
+                Routines can be backed up and transferred as JSON files.
+              </p>
+
+              <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-lg border border-surface-border bg-surface p-4">
+                  <p class="text-xs font-mono uppercase tracking-[0.15em] text-accent">Export</p>
+                  <p class="mt-2 text-sm text-fg-muted leading-relaxed">Per-routine export. Expand a routine card and use the export action. The downloaded JSON contains the routine name, links, and metadata.</p>
+                </div>
+                <div class="rounded-lg border border-surface-border bg-surface p-4">
+                  <p class="text-xs font-mono uppercase tracking-[0.15em] text-accent">Import</p>
+                  <p class="mt-2 text-sm text-fg-muted leading-relaxed">Global import from the Routines view. Select a previously exported JSON file to add the routine to your collection. Duplicate detection applies.</p>
+                </div>
+              </div>
+            </section>
+
+            <hr class="my-10 border-surface-border" />
+
+            <!-- Data -->
+            <section id="data" class="doc-section">
+              <h3 class="font-display text-2xl font-700 tracking-tight text-fg">Data &amp; storage</h3>
+              <p class="mt-3 text-fg-muted leading-relaxed">
+                WebRoutines is local-first. All data stays in your browser. There are no accounts, no cloud sync, and no telemetry.
+              </p>
+
+              <div class="mt-5 rounded-xl border border-surface-border bg-surface p-5">
+                <p class="text-xs font-mono uppercase tracking-[0.15em] text-accent">Storage layers</p>
+                <div class="mt-3 space-y-3 text-sm text-fg-muted">
+                  <div>
+                    <p class="font-medium text-fg">IndexedDB (Dexie)</p>
+                    <p class="mt-0.5 leading-relaxed">Routines, run history, and run events. This is the persistent data store that survives browser restarts.</p>
+                  </div>
+                  <div>
+                    <p class="font-medium text-fg">Session storage</p>
+                    <p class="mt-0.5 leading-relaxed">Active runner sessions, focused runner state, focus mode status. Cleared when the browser closes — sessions are ephemeral by design.</p>
+                  </div>
+                  <div>
+                    <p class="font-medium text-fg">Local storage</p>
+                    <p class="mt-0.5 leading-relaxed">App settings (theme, tab load mode, confirm stop, focus mode). Persists across browser restarts.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 rounded-lg border border-accent/20 bg-accent/5 p-4">
+                <p class="text-sm text-fg-muted leading-relaxed">
+                  <span class="font-medium text-accent">Uninstalling</span> the extension removes all IndexedDB and extension storage data per Chrome's default behavior. Export your routines first if you want to keep them.
+                </p>
+              </div>
+            </section>
+
+            <div class="mt-10 border-t border-surface-border pt-6 pb-10 text-center text-xs text-fg-faint">
+              <p>&copy; 2026 WebRoutines · <a href="../privacy.html" class="text-fg-muted hover:text-fg">Privacy</a></p>
+            </div>
+
+          </div>
+        </main>
+
+      </div>
+    </div>
+
+    <script>
+      // Sidebar active state tracking via scroll
+      const sections = document.querySelectorAll('.doc-section');
+      const navLinks = document.querySelectorAll('#sidebar-nav .nav-link');
+      const content = document.getElementById('docs-content');
+
+      function updateActiveNav() {
+        let currentId = '';
+        sections.forEach((section) => {
+          const rect = section.getBoundingClientRect();
+          if (rect.top < 200) currentId = section.closest('[id]')?.id || '';
+        });
+        navLinks.forEach((link) => {
+          link.classList.toggle('active', link.getAttribute('href') === '#' + currentId);
+        });
+      }
+
+      content.addEventListener('scroll', updateActiveNav);
+      updateActiveNav();
+
+      // Smooth scroll for sidebar links
+      document.querySelectorAll('#sidebar-nav a, #mobile-sidebar-nav a').forEach((link) => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const id = link.getAttribute('href').slice(1);
+          const target = document.getElementById(id);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+          // Close mobile nav if open
+          document.getElementById('mobile-nav').classList.add('hidden');
+        });
+      });
+
+      // Mobile nav toggle
+      document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+        document.getElementById('mobile-nav').classList.remove('hidden');
+      });
+      document.getElementById('mobile-close-btn').addEventListener('click', () => {
+        document.getElementById('mobile-nav').classList.add('hidden');
+      });
+    </script>
+  </body>
+</html>
