@@ -1,53 +1,59 @@
 # WebRoutines
 
-WebRoutines is a Chrome MV3 side panel extension for running daily website routines in a fixed order.
+WebRoutines is a Chrome MV3 extension for running daily website routines from a persistent side panel.
+
+## Current product behavior
+- Tab-group-only runtime: active sessions use `tab-group` mode (legacy `same-tab` is read-compat only for old stored records).
+- One active runner per routine, with multiple routines allowed concurrently.
+- Tab loading strategies:
+  - `eager`: open all routine tabs at start.
+  - `lazy`: open tabs as you navigate.
+- Runner controls from side panel + popup:
+  - Previous, next, jump to step, open current, stop.
+  - Focused runner switching.
+- Focus mode mini-controller on web pages (first tab of the focused runner group).
+- Local run history with filters and summary stats (runs, total time, completion rate).
+- Import/export JSON backups, import-from-open-tabs, and drag/drop routine editing.
 
 ## Stack
 - WXT + React + TypeScript
 - Bun package manager/runtime
-- shadcn/ui (base-nova preset) + Tailwind v4
-- Dexie + IndexedDB for routine persistence
-- `browser.storage.session` for multi-runner session state + focused runner
+- shadcn/ui (base-nova preset) + Tailwind CSS v4
+- Dexie + IndexedDB for persistent routine/run data
+- `browser.storage.session` for active runner state
+- `browser.storage.local` for app settings
 
-## Development
+## Local development
 ```bash
 bun install
 bun run dev
 ```
 
-## Build
+## Verification commands
 ```bash
+bun run lint
 bun run compile
+bun run test
 bun run build
 ```
 
-Build output is generated in `.output/chrome-mv3`.
+For extension e2e:
+```bash
+bun run test:e2e:install
+bun run test:e2e
+```
 
-## Load in Chrome
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Click **Load unpacked**.
-4. Select `/Users/krupakar/Documents/Stuff/WebRoutines/.output/chrome-mv3`.
+## Build and load
+```bash
+bun run build
+```
 
-## Current MVP features
-- Runner-first sidepanel UX with dedicated views:
-- Runner Home (default)
-- Routines page
-- Routine Editor page
-- Create, edit, delete routines with ordered links.
-- Drag-and-drop reorder links directly in the routine editor.
-- Run routines in grouped modes:
-- Single-tab group mode (one reusable tab per routine runner)
-- Multi-tab group mode (one tab per link)
-- One active runner per routine; multiple routine runners can run concurrently.
-- Navigate focused routine steps from side panel (previous, next, jump, open current, stop).
-- Control focused runner from popup when side panel is minimized, including quick runner switching.
-- Stopping a runner or deleting an active routine closes runner-owned tabs.
-- If a runner tab group is removed manually, the corresponding runner session auto-clears.
-- Import/export routine backups as JSON.
-- Keyboard shortcuts for navigation: `Alt+Shift+Left` and `Alt+Shift+Right`.
-- Light/dark theme toggle in side panel and popup.
-- Runner Home shows per-runner progress + elapsed runtime, with quick CTA when no runners are active.
-- Routines page includes routine-name search, compact link previews, and quick focus for running routines.
-- Routine editor supports bulk URL paste (one URL per line) and improved drag/drop reorder feedback.
-- Side panel and popup status messages now auto-clear and use improved ARIA live-region semantics.
+Load `.output/chrome-mv3` in `chrome://extensions` with Developer mode enabled.
+
+## Docs map
+- `docs/PRD.md`: current product + architecture source of truth.
+- `docs/feature-list-*.md`: phased implementation history/plans.
+- `docs/extra/`: optional external/reference context for AI chat and research; not authoritative runtime source of truth.
+
+## Docs governance
+Behavior changes must update `README.md` and `docs/PRD.md` in the same PR.

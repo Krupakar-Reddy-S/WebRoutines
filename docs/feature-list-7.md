@@ -8,7 +8,7 @@ Ship a non-breaking internal architecture and data-path upgrade in three phases:
 
 ## Phase split (as requested)
 
-### Phase A (in progress): Original Plan Phases 2 + 4
+### Phase A (completed): Original Plan Phases 2 + 4
 Scope:
 1. Modularity refactor without behavior changes.
 2. History query/data access performance hardening.
@@ -42,13 +42,14 @@ Planned work:
 - [x] Add local test scripts: `test`, `test:unit`, `test:component`, `test:e2e`, `test:watch`.
 - [x] Defer CI workflow gates until publish hardening phase.
 
-### Phase C (pending): Docs Cleanup (Original Plan Phase 1 docs item only)
+### Phase C (completed): Docs Cleanup (Original Plan Phase 1 docs item only)
 Scope:
 1. Update documentation to match runtime behavior.
 
 Planned work:
-- [ ] Update `README.md` and `docs/PRD.md` for current behavior.
-- [ ] Add docs governance rule: keep `README.md` and `docs/PRD.md` in sync with behavior PRs.
+- [x] Update `README.md` and `docs/PRD.md` for current behavior.
+- [x] Add docs governance rule: keep `README.md` and `docs/PRD.md` in sync with behavior PRs.
+- [x] Add repository `AGENTS.md` with Bun/testing/docs/modularity guardrails.
 
 ## Constraints
 - Keep runtime behavior backward compatible.
@@ -62,3 +63,4 @@ Planned work:
 - 2026-02-07: Revalidated Phase A with successful `bun run lint`, `bun run compile`, and `bun run build`.
 - 2026-02-07: Started Phase B local testing setup (Vitest unit/component + Playwright e2e scaffold; CI explicitly deferred).
 - 2026-02-07: Completed Phase B local test stack with passing `bun run lint`, `bun run compile`, `bun run test`, and `bun run test:e2e`.
+- 2026-02-07: Completed Phase C docs cleanup (`README.md`, `docs/PRD.md`) and added `AGENTS.md` governance rules.
