@@ -1,5 +1,5 @@
 const FALLBACK_HEADER = `
-<header class="relative z-20 border-b border-surface-border bg-base/80 backdrop-blur-sm">
+<header class="sticky top-0 z-20 border-b border-surface-border bg-base/80 backdrop-blur-sm">
   <div class="mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 py-4">
     <a href="__BASE__/index.html" class="flex items-center gap-2.5 font-display text-base font-semibold tracking-tight text-fg">
       <img src="__BASE__/assets/icon-placeholder-128.svg" alt="" class="h-7 w-7" />
@@ -16,7 +16,7 @@ const FALLBACK_HEADER = `
 `;
 
 const FALLBACK_FOOTER = `
-<footer class="relative z-10 mt-10 border-t border-surface-border">
+<footer class="sticky bottom-0 z-10 border-t border-surface-border bg-base/90 backdrop-blur-sm">
   <div class="mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 py-3 text-xs text-fg-faint">
     <span>&copy; 2026 WebRoutines</span>
     <div class="flex items-center gap-2">
