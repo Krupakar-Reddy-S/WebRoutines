@@ -18,7 +18,7 @@ const {
   description = 'WebRoutines — run your daily browsing on autopilot.',
   ogTitle,
   ogDescription,
-  ogImage = `${base}og-placeholder.svg`,
+  ogImage = `${base}/og-placeholder.svg`,
   activePage,
 } = Astro.props;
 ---
@@ -34,7 +34,7 @@ const {
     <meta property="og:description" content={ogDescription || description} />
     <meta property="og:type" content="website" />
     <meta property="og:image" content={ogImage} />
-    <link rel="icon" href={`${base}icon-placeholder-128.svg`} type="image/svg+xml" />
+    <link rel="icon" href={`${base}/icon-placeholder-128.svg`} type="image/svg+xml" />
     <script is:inline>
       (function(){var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t)})();
     </script>
