@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WebRoutines — Run your daily browsing on autopilot</title>
-    <meta name="description" content="WebRoutines turns repetitive browsing into ordered tab-group flows you run in seconds. Local-first Chrome extension." />
+    <meta name="description" content="WebRoutines turns repetitive browsing into ordered tab-group flows you run in seconds. Local-first extension for Chromium-based browsers." />
     <meta property="og:title" content="WebRoutines" />
-    <meta property="og:description" content="Turn repetitive browsing into ordered flows. Local-first Chrome extension." />
+    <meta property="og:description" content="Turn repetitive browsing into ordered flows. Local-first extension." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="assets/og-placeholder.svg" />
     <link rel="icon" href="assets/icon-placeholder-128.svg" type="image/svg+xml" />
@@ -34,107 +34,112 @@
       };
     </script>
     <style>
-      html, body { overflow: hidden; height: 100%; }
-      @keyframes fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-      @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       .anim-1 { animation: fade-up 0.5s ease-out both; }
       .anim-2 { animation: fade-up 0.5s ease-out 0.08s both; }
       .anim-3 { animation: fade-up 0.5s ease-out 0.16s both; }
-      .anim-4 { animation: fade-in 0.6s ease-out 0.25s both; }
+      .anim-4 { animation: fade-up 0.5s ease-out 0.24s both; }
       .feat-card { transition: border-color 0.2s, background-color 0.2s; }
       .feat-card:hover { border-color: #34d399; background-color: rgba(52,211,153,0.04); }
     </style>
   </head>
-  <body class="bg-base font-body text-fg h-screen flex flex-col">
+  <body class="bg-base font-body text-fg min-h-screen">
+    <div class="pointer-events-none fixed inset-x-0 top-0 h-[500px] bg-[radial-gradient(ellipse_60%_50%_at_50%_-10%,rgba(52,211,153,0.08),transparent)]"></div>
 
-    <!-- Subtle top glow -->
-    <div class="pointer-events-none fixed inset-x-0 top-0 h-[500px] bg-[radial-gradient(ellipse_60%_50%_at_50%_-10%,rgba(52,211,153,0.06),transparent)]"></div>
-
-    <!-- Nav -->
-    <header class="relative z-10 shrink-0 border-b border-surface-border">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <a href="index.html" class="flex items-center gap-2.5 font-display text-base font-600 tracking-tight text-fg">
+    <header class="relative z-10 border-b border-surface-border">
+      <div class="mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 py-4">
+        <a href="index.html" class="flex items-center gap-2.5 font-display text-base font-semibold tracking-tight text-fg">
           <img src="assets/icon-placeholder-128.svg" alt="" class="h-7 w-7" />
           WebRoutines
         </a>
         <nav class="flex items-center gap-1 text-sm">
-          <a href="docs/index.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:text-fg hover:bg-surface">Docs</a>
-          <a href="privacy.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:text-fg hover:bg-surface">Privacy</a>
-          <a href="https://github.com" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:text-fg hover:bg-surface">GitHub</a>
+          <a href="index.html" class="rounded-md bg-surface px-3 py-1.5 text-fg transition-colors hover:bg-surface hover:text-fg">Home</a>
+          <a href="docs/index.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg">Docs</a>
+          <a href="privacy.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg">Privacy</a>
+          <a href="https://github.com" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg">GitHub</a>
         </nav>
       </div>
     </header>
 
-    <!-- Main: fills remaining viewport -->
-    <main class="relative z-10 flex flex-1 flex-col justify-center overflow-hidden">
-      <div class="mx-auto w-full max-w-6xl px-6">
+    <main class="relative z-10 pb-8 pt-8">
+      <div class="mx-auto w-full max-w-[1400px] px-6">
+        <section class="grid items-stretch gap-6 lg:grid-cols-12">
+          <div class="lg:col-span-4">
+            <div class="anim-1 inline-flex items-center gap-2 rounded-full border border-surface-border bg-surface px-3 py-1 text-xs font-mono text-accent">
+              <span class="h-1.5 w-1.5 rounded-full bg-accent"></span>
+              Local-first · Chromium based
+            </div>
+            <h1 class="anim-2 mt-4 font-display text-4xl font-bold leading-[1.08] tracking-tight text-fg sm:text-5xl">
+              Build once.<br />
+              Run every day.
+            </h1>
+            <p class="anim-3 mt-4 text-base text-fg-muted sm:text-lg">
+              WebRoutines turns repetitive browsing into ordered runners with keyboard control and local-only data storage.
+            </p>
 
-        <!-- Hero -->
-        <div class="text-center">
-          <div class="anim-1 inline-flex items-center gap-2 rounded-full border border-surface-border bg-surface px-3 py-1 text-xs font-mono text-accent">
-            <span class="h-1.5 w-1.5 rounded-full bg-accent"></span>
-            Local-first · Chrome MV3
-          </div>
-          <h1 class="anim-2 mt-5 font-display text-4xl font-700 leading-[1.1] tracking-tight text-fg sm:text-5xl lg:text-6xl">
-            Build a routine once.<br />
-            <span class="text-accent">Run it daily in seconds.</span>
-          </h1>
-          <p class="anim-3 mx-auto mt-4 max-w-lg text-base text-fg-muted sm:text-lg">
-            WebRoutines turns your repetitive daily browsing into ordered tab-group flows with keyboard navigation and run tracking.
-          </p>
-          <div class="anim-4 mt-6 flex items-center justify-center gap-3">
-            <span class="inline-flex cursor-not-allowed items-center rounded-lg bg-surface-raised px-5 py-2.5 text-sm font-medium text-fg-faint border border-surface-border">
-              Install — coming soon
-            </span>
-            <a href="docs/index.html" class="inline-flex items-center gap-1.5 rounded-lg bg-accent/10 border border-accent/30 px-5 py-2.5 text-sm font-medium text-accent transition-colors hover:bg-accent/15">
-              Read the docs
-              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-            </a>
-          </div>
-        </div>
+            <ul class="anim-3 mt-5 space-y-2 text-sm text-fg-muted">
+              <li class="flex gap-2"><span class="mt-1 h-1.5 w-1.5 rounded-full bg-accent"></span><span>Routines and history stay in your browser.</span></li>
+              <li class="flex gap-2"><span class="mt-1 h-1.5 w-1.5 rounded-full bg-accent"></span><span>No account, no cloud lock-in, no remote dependency.</span></li>
+              <li class="flex gap-2"><span class="mt-1 h-1.5 w-1.5 rounded-full bg-accent"></span><span>Import/export JSON whenever you want portability.</span></li>
+            </ul>
 
-        <!-- Feature cards -->
-        <div class="anim-4 mt-10 grid grid-cols-2 gap-3 sm:mt-12 lg:grid-cols-4">
-          <!-- Card 1 -->
+            <div class="anim-4 mt-6 flex flex-wrap items-center gap-3">
+              <span class="inline-flex cursor-not-allowed items-center rounded-lg border border-surface-border bg-surface-raised px-5 py-2.5 text-sm font-medium text-fg-faint">
+                Install — coming soon
+              </span>
+              <a href="docs/index.html" class="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-5 py-2.5 text-sm font-medium text-accent transition-colors hover:bg-accent/15">
+                Read the docs
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+              </a>
+            </div>
+          </div>
+
+          <div class="anim-2 lg:col-span-8">
+            <div class="rounded-2xl p-0">
+              <img
+                src="assets/hero-flow.svg"
+                alt="Animated end-to-end WebRoutines flow from empty Runner Home to routine start, tab-group navigation, focus mode, and return to sidepanel"
+                class="h-[360px] w-full rounded-2xl object-contain sm:h-[440px] lg:h-[520px]"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section class="anim-4 mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div class="feat-card rounded-xl border border-surface-border bg-surface/60 p-4">
             <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
               <svg class="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             </div>
             <p class="mt-3 text-sm font-medium text-fg">Tab-group runners</p>
-            <p class="mt-1 text-xs leading-relaxed text-fg-muted">Each routine runs in its own Chrome tab group. Multiple routines can run at once.</p>
+            <p class="mt-1 text-xs leading-relaxed text-fg-muted">Run one routine per group and keep several flows active in parallel.</p>
           </div>
-          <!-- Card 2 -->
           <div class="feat-card rounded-xl border border-surface-border bg-surface/60 p-4">
             <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
               <svg class="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             </div>
             <p class="mt-3 text-sm font-medium text-fg">Eager or lazy loading</p>
-            <p class="mt-1 text-xs leading-relaxed text-fg-muted">Open all tabs at once, or load them one at a time as you navigate forward.</p>
+            <p class="mt-1 text-xs leading-relaxed text-fg-muted">Choose between opening every tab at start or loading step-by-step.</p>
           </div>
-          <!-- Card 3 -->
           <div class="feat-card rounded-xl border border-surface-border bg-surface/60 p-4">
             <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
               <svg class="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" d="M12 2v3m0 14v3m-7.07-2.93l2.12-2.12m9.9-9.9l2.12-2.12M2 12h3m14 0h3M4.93 4.93l2.12 2.12m9.9 9.9l2.12 2.12"/></svg>
             </div>
             <p class="mt-3 text-sm font-medium text-fg">Focus controller</p>
-            <p class="mt-1 text-xs leading-relaxed text-fg-muted">Compact prev/next controls float on any page while you're in a routine.</p>
+            <p class="mt-1 text-xs leading-relaxed text-fg-muted">Use compact in-page controls while moving across routine steps.</p>
           </div>
-          <!-- Card 4 -->
           <div class="feat-card rounded-xl border border-surface-border bg-surface/60 p-4">
             <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
               <svg class="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             </div>
             <p class="mt-3 text-sm font-medium text-fg">Run history</p>
-            <p class="mt-1 text-xs leading-relaxed text-fg-muted">Track every run with duration, completion rate, and per-routine stats.</p>
+            <p class="mt-1 text-xs leading-relaxed text-fg-muted">Measure duration and completion trends with local history summaries.</p>
           </div>
-        </div>
-
+        </section>
       </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="relative z-10 shrink-0 border-t border-surface-border">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3 text-xs text-fg-faint">
+    <footer class="relative z-10 border-t border-surface-border">
+      <div class="mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 py-3 text-xs text-fg-faint">
         <span>&copy; 2026 WebRoutines</span>
         <div class="flex items-center gap-1">
           <span class="h-1 w-1 rounded-full bg-accent/50"></span>
@@ -142,6 +147,5 @@
         </div>
       </div>
     </footer>
-
   </body>
 </html>

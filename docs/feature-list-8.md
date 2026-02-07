@@ -52,3 +52,4 @@ Ship a plain static website foundation in `/site` for landing and docs content, 
 - 2026-02-07: Revised site structure: merged shortcuts into `site/docs/index.html`, removed standalone changelog/shortcuts pages, and switched layouts to full-width/full-height wrappers.
 - 2026-02-07: Upgraded docs page to a sidebar-driven static docs experience with richer sections (routine/runner/settings/shortcuts/local-first) and single-section switching (selected section only).
 - 2026-02-07: Refined landing layout for cleaner visual hierarchy and expanded privacy page into structured policy sections (data inventory, lifecycle, permissions rationale, update policy).
+- 2026-02-07: Replaced landing hero with a large animated SVG walkthrough based on real extension UI flow (Runner Home empty state → Routines start action → tab-group step navigation → focus mode mini-controller → return to sidepanel).

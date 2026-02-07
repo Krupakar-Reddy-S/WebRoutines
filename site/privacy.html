@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WebRoutines — Privacy</title>
-    <meta name="description" content="WebRoutines privacy policy. All data is stored locally in your browser. No accounts, no analytics, no tracking." />
+    <meta name="description" content="WebRoutines privacy policy. Local-first data handling with no accounts or analytics." />
     <meta property="og:title" content="WebRoutines Privacy" />
-    <meta property="og:description" content="Local-first by design. No data leaves your browser." />
+    <meta property="og:description" content="Local-first by design. Your routine data stays in your browser." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="assets/og-placeholder.svg" />
     <link rel="icon" href="assets/icon-placeholder-128.svg" type="image/svg+xml" />
@@ -35,176 +35,108 @@
     </script>
   </head>
   <body class="bg-base font-body text-fg min-h-screen">
+    <div class="pointer-events-none fixed inset-x-0 top-0 h-[500px] bg-[radial-gradient(ellipse_60%_50%_at_50%_-10%,rgba(52,211,153,0.08),transparent)]"></div>
 
-    <!-- Nav -->
-    <header class="border-b border-surface-border">
-      <div class="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-        <a href="index.html" class="flex items-center gap-2.5 font-display text-sm font-600 tracking-tight text-fg">
-          <img src="assets/icon-placeholder-128.svg" alt="" class="h-6 w-6" />
+    <header class="relative z-10 border-b border-surface-border">
+      <div class="mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 py-4">
+        <a href="index.html" class="flex items-center gap-2.5 font-display text-base font-semibold tracking-tight text-fg">
+          <img src="assets/icon-placeholder-128.svg" alt="" class="h-7 w-7" />
           WebRoutines
         </a>
         <nav class="flex items-center gap-1 text-sm">
-          <a href="index.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:text-fg hover:bg-surface">Home</a>
-          <a href="docs/index.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:text-fg hover:bg-surface">Docs</a>
-          <a href="privacy.html" class="rounded-md px-3 py-1.5 text-accent bg-accent/8">Privacy</a>
+          <a href="index.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg">Home</a>
+          <a href="docs/index.html" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg">Docs</a>
+          <a href="privacy.html" class="rounded-md bg-surface px-3 py-1.5 text-fg transition-colors hover:bg-surface hover:text-fg">Privacy</a>
+          <a href="https://github.com" class="rounded-md px-3 py-1.5 text-fg-muted transition-colors hover:bg-surface hover:text-fg">GitHub</a>
         </nav>
       </div>
     </header>
 
-    <!-- Content -->
-    <main class="mx-auto max-w-3xl px-6 py-10">
+    <main class="relative z-10 pb-8 pt-8">
+      <div class="mx-auto w-full max-w-[1400px] px-6">
+        <section class="rounded-2xl border border-accent/20 bg-accent/6 p-5">
+          <p class="text-xs font-mono uppercase tracking-[0.16em] text-accent">Privacy</p>
+          <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight text-fg">Local-first by design</h1>
+          <p class="mt-2 max-w-4xl text-sm text-fg-muted">
+            WebRoutines stores routines, runner state, and history in browser-managed local storage. No account is required, and no analytics/tracking is part of core usage.
+          </p>
+        </section>
 
-      <div class="flex items-center gap-3">
-        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
-          <svg class="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-        </div>
-        <div>
-          <h1 class="font-display text-2xl font-700 tracking-tight text-fg">Privacy Policy</h1>
-          <p class="text-sm text-fg-faint">Last updated February 2026</p>
-        </div>
-      </div>
+        <section class="mt-4 grid gap-4 lg:grid-cols-12">
+          <article class="rounded-xl border border-surface-border bg-surface/70 p-4 lg:col-span-4">
+            <h2 class="font-display text-lg font-semibold text-fg">What is stored</h2>
+            <ul class="mt-3 space-y-1.5 text-sm text-fg-muted">
+              <li>Routine definitions (names + ordered links)</li>
+              <li>Run history (start/stop/timing/progress)</li>
+              <li>Settings (theme, load mode, toggles)</li>
+              <li>Active session state (focused runner + step)</li>
+            </ul>
+          </article>
 
-      <div class="mt-8 rounded-xl border border-accent/20 bg-accent/5 p-5">
-        <p class="text-sm font-medium text-accent">The short version</p>
-        <p class="mt-2 text-sm text-fg-muted leading-relaxed">
-          WebRoutines stores all data locally in your browser. Nothing is sent to any server. There are no accounts, no analytics, and no tracking. Your browsing routines stay on your machine.
-        </p>
-      </div>
+          <article class="rounded-xl border border-surface-border bg-surface/70 p-4 lg:col-span-4">
+            <h2 class="font-display text-lg font-semibold text-fg">What is not done</h2>
+            <ul class="mt-3 space-y-1.5 text-sm text-fg-muted">
+              <li>No telemetry or third-party analytics</li>
+              <li>No account creation/auth requirement</li>
+              <li>No automatic cloud sync dependency</li>
+              <li>No ad/tracker script in extension runtime</li>
+            </ul>
+          </article>
 
-      <!-- What we store -->
-      <section class="mt-10">
-        <h2 class="font-display text-lg font-600 text-fg">What data is stored</h2>
-        <div class="mt-4 space-y-3">
-          <div class="rounded-lg border border-surface-border bg-surface p-4">
-            <p class="text-sm font-medium text-fg">Routine definitions</p>
-            <p class="mt-1 text-sm text-fg-muted leading-relaxed">Names and ordered URL lists you create. Stored in IndexedDB, a browser-managed local database.</p>
-          </div>
-          <div class="rounded-lg border border-surface-border bg-surface p-4">
-            <p class="text-sm font-medium text-fg">Run history</p>
-            <p class="mt-1 text-sm text-fg-muted leading-relaxed">Start time, duration, steps completed, and completion status for each routine run. Stored in IndexedDB.</p>
-          </div>
-          <div class="rounded-lg border border-surface-border bg-surface p-4">
-            <p class="text-sm font-medium text-fg">Settings</p>
-            <p class="mt-1 text-sm text-fg-muted leading-relaxed">Theme preference, tab loading mode, and feature toggles. Stored in Chrome's local extension storage.</p>
-          </div>
-          <div class="rounded-lg border border-surface-border bg-surface p-4">
-            <p class="text-sm font-medium text-fg">Session state</p>
-            <p class="mt-1 text-sm text-fg-muted leading-relaxed">Active runner state (which routine is running, current step, tab IDs). Stored in session-scoped storage that clears when the browser closes.</p>
-          </div>
-        </div>
-      </section>
+          <article class="rounded-xl border border-surface-border bg-surface/70 p-4 lg:col-span-4">
+            <h2 class="font-display text-lg font-semibold text-fg">Data lifecycle</h2>
+            <ul class="mt-3 space-y-1.5 text-sm text-fg-muted">
+              <li>Create/manage data from extension UI</li>
+              <li>Export/import backups manually as JSON</li>
+              <li>Delete routines/history from extension</li>
+              <li>Uninstall removes extension-managed data</li>
+            </ul>
+          </article>
+        </section>
 
-      <!-- What we don't do -->
-      <section class="mt-10">
-        <h2 class="font-display text-lg font-600 text-fg">What WebRoutines does not do</h2>
-        <div class="mt-4 space-y-2 text-sm text-fg-muted">
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface text-fg-faint">✕</span>
-            <span>Does not transmit any data to external servers.</span>
+        <section class="mt-4 overflow-hidden rounded-2xl border border-surface-border bg-surface/70">
+          <div class="border-b border-surface-border px-5 py-3">
+            <h2 class="font-display text-lg font-semibold text-fg">Permissions rationale</h2>
           </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface text-fg-faint">✕</span>
-            <span>Does not include analytics, telemetry, or tracking of any kind.</span>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface text-fg-faint">✕</span>
-            <span>Does not require or offer user accounts.</span>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface text-fg-faint">✕</span>
-            <span>Does not read, collect, or store page content from sites you visit.</span>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface text-fg-faint">✕</span>
-            <span>Does not inject ads or promotional content.</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Permissions -->
-      <section class="mt-10">
-        <h2 class="font-display text-lg font-600 text-fg">Permissions and why</h2>
-        <p class="mt-2 text-sm text-fg-muted leading-relaxed">WebRoutines requests only the permissions necessary for its features.</p>
-        <div class="mt-4 overflow-hidden rounded-xl border border-surface-border">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-surface-border bg-surface">
-                <th class="px-4 py-3 text-left text-xs font-mono uppercase tracking-[0.12em] text-fg-faint">Permission</th>
-                <th class="px-4 py-3 text-left text-xs font-mono uppercase tracking-[0.12em] text-fg-faint">Reason</th>
+          <table class="w-full text-left text-sm">
+            <thead class="bg-surface/70 text-fg-faint">
+              <tr>
+                <th class="px-5 py-3 font-mono text-xs uppercase tracking-[0.12em]">Permission</th>
+                <th class="px-5 py-3 font-mono text-xs uppercase tracking-[0.12em]">Reason</th>
               </tr>
             </thead>
-            <tbody class="text-fg-muted">
-              <tr class="border-b border-surface-border">
-                <td class="px-4 py-3"><code class="font-mono text-xs text-fg">storage</code></td>
-                <td class="px-4 py-3">Persist routines, run history, and settings locally.</td>
-              </tr>
-              <tr class="border-b border-surface-border">
-                <td class="px-4 py-3"><code class="font-mono text-xs text-fg">sidePanel</code></td>
-                <td class="px-4 py-3">Display the main extension interface in Chrome's side panel.</td>
-              </tr>
-              <tr class="border-b border-surface-border">
-                <td class="px-4 py-3"><code class="font-mono text-xs text-fg">tabGroups</code></td>
-                <td class="px-4 py-3">Create and manage tab groups for routine runners.</td>
-              </tr>
-              <tr class="border-b border-surface-border">
-                <td class="px-4 py-3"><code class="font-mono text-xs text-fg">unlimitedStorage</code></td>
-                <td class="px-4 py-3">Support larger local datasets as run history grows.</td>
+            <tbody class="divide-y divide-surface-border text-fg-muted">
+              <tr>
+                <td class="px-5 py-3"><code class="font-mono text-xs text-fg">storage</code></td>
+                <td class="px-5 py-3">Persist routines, settings, and run data locally.</td>
               </tr>
               <tr>
-                <td class="px-4 py-3"><code class="font-mono text-xs text-fg">host permissions</code></td>
-                <td class="px-4 py-3">Required for the focus mode controller to appear on web pages. The controller does not read or modify page content — it only renders a navigation overlay.</td>
+                <td class="px-5 py-3"><code class="font-mono text-xs text-fg">tabGroups</code></td>
+                <td class="px-5 py-3">Create and manage routine tab-group sessions.</td>
+              </tr>
+              <tr>
+                <td class="px-5 py-3"><code class="font-mono text-xs text-fg">unlimitedStorage</code></td>
+                <td class="px-5 py-3">Support larger local datasets over time.</td>
+              </tr>
+              <tr>
+                <td class="px-5 py-3"><code class="font-mono text-xs text-fg">host_permissions</code></td>
+                <td class="px-5 py-3">Enable focus mode overlay on pages; no page-content harvesting.</td>
               </tr>
             </tbody>
           </table>
-        </div>
-      </section>
+        </section>
 
-      <!-- Data lifecycle -->
-      <section class="mt-10">
-        <h2 class="font-display text-lg font-600 text-fg">Data lifecycle</h2>
-        <div class="mt-4 space-y-3 text-sm text-fg-muted">
-          <div class="rounded-lg border border-surface-border bg-surface p-4">
-            <p class="font-medium text-fg">You create it</p>
-            <p class="mt-1 leading-relaxed">Routines are created through the extension UI and stored in your browser's IndexedDB.</p>
-          </div>
-          <div class="rounded-lg border border-surface-border bg-surface p-4">
-            <p class="font-medium text-fg">You control it</p>
-            <p class="mt-1 leading-relaxed">Edit, delete, or export routines at any time. Import/export is user-initiated only. There is no background sync.</p>
-          </div>
-          <div class="rounded-lg border border-surface-border bg-surface p-4">
-            <p class="font-medium text-fg">You remove it</p>
-            <p class="mt-1 leading-relaxed">Uninstalling the extension removes all extension-managed data per Chrome's default behavior. Export your routines first if you want to keep them.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Static site -->
-      <section class="mt-10">
-        <h2 class="font-display text-lg font-600 text-fg">This website</h2>
-        <p class="mt-2 text-sm text-fg-muted leading-relaxed">
-          This is a static site hosted on GitHub Pages. It does not use cookies, analytics scripts, or any form of user tracking. There are no third-party scripts loaded beyond Google Fonts and the Tailwind CSS CDN.
-        </p>
-      </section>
-
-      <!-- Contact -->
-      <section class="mt-10">
-        <h2 class="font-display text-lg font-600 text-fg">Contact</h2>
-        <p class="mt-2 text-sm text-fg-muted leading-relaxed">
-          Questions about this policy can be directed to the repository's issue tracker or via email at <span class="text-fg">[your-email@example.com]</span>.
-        </p>
-      </section>
-
-      <!-- Policy updates -->
-      <section class="mt-10 rounded-lg border border-surface-border bg-surface/60 p-4">
-        <p class="text-sm text-fg-muted leading-relaxed">
-          <span class="font-medium text-fg">Policy updates:</span> This privacy page is versioned alongside the source code. Changes to data handling behavior will be reflected here in the same commit. Check the repository history for the full changelog.
-        </p>
-      </section>
-
-      <footer class="mt-12 border-t border-surface-border pt-6 pb-10 text-center text-xs text-fg-faint">
-        <p>&copy; 2026 WebRoutines · <a href="index.html" class="text-fg-muted hover:text-fg">Home</a> · <a href="docs/index.html" class="text-fg-muted hover:text-fg">Docs</a></p>
-      </footer>
-
+        <section class="mt-4 grid gap-4 lg:grid-cols-2">
+          <article class="rounded-xl border border-surface-border bg-surface/70 p-4">
+            <h2 class="font-display text-lg font-semibold text-fg">This static website</h2>
+            <p class="mt-2 text-sm text-fg-muted">No cookies or analytics are used on this static docs site. External resources are limited to Google Fonts and Tailwind CDN.</p>
+          </article>
+          <article class="rounded-xl border border-surface-border bg-surface/70 p-4">
+            <h2 class="font-display text-lg font-semibold text-fg">Policy updates</h2>
+            <p class="mt-2 text-sm text-fg-muted">Privacy policy updates should be committed with behavior changes. Last updated: February 7, 2026.</p>
+          </article>
+        </section>
+      </div>
     </main>
   </body>
 </html>
