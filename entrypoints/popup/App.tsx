@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { HistoryIcon, SettingsIcon } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,25 @@ function App() {
     return routine.links[focusedSession.currentIndex] ?? null;
   }, [routine, focusedSession]);
 
+  const onNavigate = useCallback(async (offset: number) => {
+    if (!focusedSession) {
+      setStatus('No active routine.');
+      return;
+    }
+
+    setBusyAction(offset > 0 ? 'next' : 'previous');
+    setStatus(null);
+
+    try {
+      const updated = await navigateSessionByOffset(focusedSession.routineId, offset);
+      setStatus(updated ? (offset > 0 ? 'Moved next.' : 'Moved previous.') : 'No active routine.');
+    } catch {
+      setStatus('Unable to navigate right now.');
+    } finally {
+      setBusyAction(null);
+    }
+  }, [focusedSession]);
+
   useEffect(() => {
     void getRunnerState().then(setRunnerState);
     const unsubscribe = subscribeToRunnerState(setRunnerState);
@@ -111,7 +130,7 @@ function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [focusedSession?.routineId]);
+  }, [onNavigate]);
 
   useEffect(() => {
     if (!status) {
@@ -126,25 +145,6 @@ function App() {
   }, [status]);
 
   const hasActiveSession = Boolean(focusedSession && routine);
-
-  async function onNavigate(offset: number) {
-    if (!focusedSession) {
-      setStatus('No active routine.');
-      return;
-    }
-
-    setBusyAction(offset > 0 ? 'next' : 'previous');
-    setStatus(null);
-
-    try {
-      const updated = await navigateSessionByOffset(focusedSession.routineId, offset);
-      setStatus(updated ? (offset > 0 ? 'Moved next.' : 'Moved previous.') : 'No active routine.');
-    } catch {
-      setStatus('Unable to navigate right now.');
-    } finally {
-      setBusyAction(null);
-    }
-  }
 
   async function onOpenCurrent() {
     if (!focusedSession) {

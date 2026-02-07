@@ -3,6 +3,13 @@ import { defineConfig } from 'wxt';
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
+  react: {
+    vite: {
+      babel: {
+        plugins: ['babel-plugin-react-compiler'],
+      },
+    },
+  },
   manifest: {
     name: 'WebRoutines',
     description: 'Daily website routines from a persistent side panel.',
