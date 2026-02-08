@@ -81,7 +81,7 @@ function App() {
     setStatus(null);
 
     try {
-      const updated = await navigateSessionByOffset(focusedSession.routineId, offset);
+      const updated = await navigateSessionByOffset(focusedSession.routineId, offset, 'popup');
       setStatus(updated ? (offset > 0 ? 'Moved next.' : 'Moved previous.') : 'No active routine.');
     } catch {
       setStatus('Unable to navigate right now.');
@@ -135,7 +135,7 @@ function App() {
     setStatus(null);
 
     try {
-      const updated = await openCurrentSessionLink(focusedSession.routineId);
+      const updated = await openCurrentSessionLink(focusedSession.routineId, 'popup');
       setStatus(updated ? 'Opened current link.' : 'No active routine.');
     } catch {
       setStatus('Unable to open current link.');
@@ -174,7 +174,7 @@ function App() {
     setStatus(null);
 
     try {
-      const stopped = await stopActiveRoutine(focusedSession.routineId);
+      const stopped = await stopActiveRoutine(focusedSession.routineId, 'popup');
       setStatus(stopped ? 'Runner stopped.' : 'No active routine.');
       setStopDialogOpen(false);
     } catch {

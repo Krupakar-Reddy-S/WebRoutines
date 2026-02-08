@@ -1,10 +1,14 @@
 import { db } from '@/lib/db';
 import type {
   Routine,
+  RunActionEvent,
+  RunActionEventAction,
+  RunActionEventSource,
   RoutineRun,
   RoutineRunEventType,
   RoutineSession,
   RunStopReason,
+  RunStepNote,
 } from '@/lib/types';
 
 interface EnsureRunResult {
@@ -12,9 +16,12 @@ interface EnsureRunResult {
   created: boolean;
 }
 
+const MAX_STEP_NOTE_LENGTH = 2_000;
+
 export async function createRunForSession(
   routine: Routine,
   session: RoutineSession,
+  source: RunActionEventSource = 'system',
 ): Promise<number> {
   const totalSteps = routine.links.length;
   const startingStep = Math.min(session.currentIndex + 1, totalSteps || 0);
@@ -32,6 +39,14 @@ export async function createRunForSession(
 
   const runId = await db.runs.add(run);
   await logRunEvent(runId, routine.id!, 'start', session.currentIndex, session.startedAt);
+  await logRunActionEvent({
+    runId,
+    routineId: routine.id!,
+    timestamp: session.startedAt,
+    type: 'run-start',
+    source,
+    toStepIndex: session.currentIndex,
+  });
 
   return runId;
 }
@@ -39,6 +54,7 @@ export async function createRunForSession(
 export async function ensureRunForSession(
   session: RoutineSession,
   routine: Routine | null,
+  source: RunActionEventSource = 'system',
 ): Promise<EnsureRunResult | null> {
   if (typeof session.runId === 'number') {
     return { runId: session.runId, created: false };
@@ -48,7 +64,7 @@ export async function ensureRunForSession(
     return null;
   }
 
-  const runId = await createRunForSession(routine, session);
+  const runId = await createRunForSession(routine, session, source);
   return { runId, created: true };
 }
 
@@ -66,6 +82,7 @@ export async function finalizeRun(
   routineId: number,
   stoppedAt: number,
   stopReason: RunStopReason,
+  source: RunActionEventSource = 'system',
 ): Promise<void> {
   const run = await db.runs.get(runId);
   if (!run || run.stoppedAt !== null) {
@@ -96,6 +113,105 @@ export async function finalizeRun(
   });
 
   await logRunEvent(runId, routineId, 'stop', undefined, stoppedAt);
+  await logRunActionEvent({
+    runId,
+    routineId,
+    timestamp: stoppedAt,
+    type: 'run-stop',
+    action: resolveStopAction(stopReason),
+    source,
+    toStepIndex: Math.max(0, Math.min(stepsCompleted - 1, Math.max(totalSteps - 1, 0))),
+    meta: { stopReason },
+  });
+}
+
+export async function upsertRunStepNote(
+  runId: number,
+  stepIndex: number,
+  rawNote: string,
+  updatedAt: number = Date.now(),
+): Promise<void> {
+  const run = await db.runs.get(runId);
+  if (!run) {
+    return;
+  }
+
+  const note = rawNote.trim().slice(0, MAX_STEP_NOTE_LENGTH);
+  const withoutCurrentStep = (run.stepNotes ?? []).filter((item) => item.stepIndex !== stepIndex);
+
+  const nextStepNotes: RunStepNote[] = note
+    ? [...withoutCurrentStep, { stepIndex, note, updatedAt }].sort((left, right) => left.stepIndex - right.stepIndex)
+    : withoutCurrentStep;
+
+  await db.runs.update(runId, {
+    stepNotes: nextStepNotes.length > 0 ? nextStepNotes : undefined,
+  });
+}
+
+export async function logRunNavigationAction(input: {
+  runId: number;
+  routineId: number;
+  source: RunActionEventSource;
+  action: Extract<RunActionEventAction, 'next' | 'previous' | 'jump' | 'open-current'>;
+  fromStepIndex: number;
+  toStepIndex: number;
+  timestamp?: number;
+}): Promise<void> {
+  const {
+    runId,
+    routineId,
+    source,
+    action,
+    fromStepIndex,
+    toStepIndex,
+    timestamp = Date.now(),
+  } = input;
+
+  await logRunActionEvent({
+    runId,
+    routineId,
+    timestamp,
+    type: 'navigate',
+    action,
+    source,
+    fromStepIndex,
+    toStepIndex,
+  });
+}
+
+export async function logRunStepSyncAction(input: {
+  runId: number;
+  routineId: number;
+  source: RunActionEventSource;
+  action: Extract<RunActionEventAction, 'manual-tab-activate' | 'tab-removed-shift'>;
+  fromStepIndex: number;
+  toStepIndex: number;
+  timestamp?: number;
+}): Promise<void> {
+  const {
+    runId,
+    routineId,
+    source,
+    action,
+    fromStepIndex,
+    toStepIndex,
+    timestamp = Date.now(),
+  } = input;
+
+  await logRunActionEvent({
+    runId,
+    routineId,
+    timestamp,
+    type: 'step-sync',
+    action,
+    source,
+    fromStepIndex,
+    toStepIndex,
+  });
+}
+
+export async function logRunActionEvent(event: Omit<RunActionEvent, 'id'>): Promise<void> {
+  await db.runActionEvents.add(event);
 }
 
 async function logRunEvent(
@@ -112,4 +228,23 @@ async function logRunEvent(
     type,
     stepIndex,
   });
+}
+
+function resolveStopAction(stopReason: RunStopReason): Extract<
+  RunActionEventAction,
+  'group-removed' | 'tabs-closed' | 'user-stop' | 'system-stop'
+> {
+  if (stopReason === 'group-removed') {
+    return 'group-removed';
+  }
+
+  if (stopReason === 'tabs-closed') {
+    return 'tabs-closed';
+  }
+
+  if (stopReason === 'user-stop') {
+    return 'user-stop';
+  }
+
+  return 'system-stop';
 }

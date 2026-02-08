@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { HistoryIcon, SettingsIcon } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { getFocusedSession as getFocusedSessionFromState } from '@/core/runner/focus';
 import { StopRunnerDialog } from '@/components/StopRunnerDialog';
@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { db } from '@/lib/db';
 import {
   navigateSessionByOffset,
@@ -20,6 +21,7 @@ import {
   openCurrentSessionLink,
   stopActiveRoutine,
 } from '@/lib/navigation';
+import { upsertRunStepNote } from '@/lib/run-history';
 import { formatNavigationShortcutPair, useNavigationShortcuts } from '@/lib/navigation-shortcuts';
 import { setSettingsPatch } from '@/lib/settings';
 import {
@@ -62,6 +64,9 @@ export function RunnerHomeView({
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [stopDialogRoutineId, setStopDialogRoutineId] = useState<number | null>(null);
+  const [stepNoteDraft, setStepNoteDraft] = useState('');
+  const [stepNoteDirty, setStepNoteDirty] = useState(false);
+  const [noteStatus, setNoteStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const focusedSession = useMemo(
     () => getFocusedSessionFromState(runnerState.sessions, runnerState.focusedRoutineId),
@@ -99,6 +104,17 @@ export function RunnerHomeView({
       return (await db.routines.get(focusedSession.routineId)) ?? null;
     },
     [focusedSession?.routineId],
+  );
+
+  const focusedRun = useLiveQuery(
+    async () => {
+      if (typeof focusedSession?.runId !== 'number') {
+        return null;
+      }
+
+      return (await db.runs.get(focusedSession.runId)) ?? null;
+    },
+    [focusedSession?.runId],
   );
 
   const currentLink = useMemo(() => {
@@ -154,6 +170,52 @@ export function RunnerHomeView({
     return () => window.clearInterval(timerId);
   }, []);
 
+  useEffect(() => {
+    if (!focusedSession || !focusedRun) {
+      setStepNoteDraft('');
+      setStepNoteDirty(false);
+      setNoteStatus('idle');
+      return;
+    }
+
+    const existing = focusedRun.stepNotes?.find((item) => item.stepIndex === focusedSession.currentIndex)?.note ?? '';
+    setStepNoteDraft(existing);
+    setStepNoteDirty(false);
+    setNoteStatus('idle');
+  }, [focusedRun, focusedSession]);
+
+  const flushFocusedStepNote = useCallback(async () => {
+    if (!focusedSession || typeof focusedSession.runId !== 'number' || !stepNoteDirty) {
+      return;
+    }
+
+    setNoteStatus('saving');
+
+    try {
+      await upsertRunStepNote(
+        focusedSession.runId,
+        focusedSession.currentIndex,
+        stepNoteDraft,
+      );
+      setStepNoteDirty(false);
+      setNoteStatus('saved');
+    } catch {
+      setNoteStatus('error');
+    }
+  }, [focusedSession, stepNoteDirty, stepNoteDraft]);
+
+  useEffect(() => {
+    if (!stepNoteDirty) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void flushFocusedStepNote();
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [flushFocusedStepNote, stepNoteDirty]);
+
   async function onFocusRoutineRunner(routineId: number) {
     await setFocusedRoutine(routineId);
   }
@@ -171,7 +233,8 @@ export function RunnerHomeView({
     onMessage(null);
 
     try {
-      const updated = await navigateSessionByOffset(targetRoutineId, offset);
+      await flushFocusedStepNote();
+      const updated = await navigateSessionByOffset(targetRoutineId, offset, 'sidepanel');
       if (!updated) {
         onError('No active routine to navigate.');
         return;
@@ -195,7 +258,16 @@ export function RunnerHomeView({
     onMessage(null);
 
     try {
-      await navigateToIndex(focusedRoutine, focusedSession, index);
+      await flushFocusedStepNote();
+      await navigateToIndex(
+        focusedRoutine,
+        focusedSession,
+        index,
+        {
+          source: 'sidepanel',
+          action: 'jump',
+        },
+      );
       onMessage(`Jumped to step ${index + 1}.`);
     } catch (jumpError) {
       onError(toErrorMessage(jumpError, 'Failed to jump to step.'));
@@ -217,7 +289,8 @@ export function RunnerHomeView({
     onMessage(null);
 
     try {
-      const updated = await openCurrentSessionLink(targetRoutineId);
+      await flushFocusedStepNote();
+      const updated = await openCurrentSessionLink(targetRoutineId, 'sidepanel');
       if (!updated) {
         onError('No active routine to open.');
         return;
@@ -237,7 +310,8 @@ export function RunnerHomeView({
     onMessage(null);
 
     try {
-      const stopped = await stopActiveRoutine(targetRoutineId);
+      await flushFocusedStepNote();
+      const stopped = await stopActiveRoutine(targetRoutineId, 'sidepanel');
       onMessage(stopped ? 'Runner stopped and group tabs closed.' : 'No active runner found.');
       setStopDialogRoutineId(null);
     } catch (stopError) {
@@ -278,6 +352,7 @@ export function RunnerHomeView({
         await setSettingsPatch({ focusModeEnabled: true });
       }
 
+      await flushFocusedStepNote();
       await setFocusModeActive(true);
       window.close();
     } catch (focusModeError) {
@@ -430,6 +505,30 @@ export function RunnerHomeView({
                   </Button>
                 </div>
               )}
+
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Step note</p>
+                <Textarea
+                  value={stepNoteDraft}
+                  onChange={(event) => {
+                    setStepNoteDraft(event.target.value);
+                    setStepNoteDirty(true);
+                    setNoteStatus('idle');
+                  }}
+                  onBlur={() => {
+                    void flushFocusedStepNote();
+                  }}
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="Add a note for this step..."
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {noteStatus === 'saving' && 'Saving...'}
+                  {noteStatus === 'saved' && 'Saved'}
+                  {noteStatus === 'error' && 'Failed to save note'}
+                  {noteStatus === 'idle' && 'Notes are saved to this run only'}
+                </p>
+              </div>
 
               <Separator />
               <StepList

@@ -62,6 +62,7 @@ export function RoutinesView({
   const [deleteDialogRoutine, setDeleteDialogRoutine] = useState<Routine | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
+  const todayDay = new Date(clockNow).getDay();
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const isDeletingRoutine = Boolean(
     deleteDialogRoutine?.id
@@ -74,7 +75,6 @@ export function RoutinesView({
     }
 
     const activeByRoutine = new Map(runnerState.sessions.map((session) => [session.routineId, session.startedAt]));
-    const todayDay = new Date(clockNow).getDay();
 
     return [...routines].sort((left, right) => {
       const leftBucket = isRoutineScheduledForDay(left, todayDay)
@@ -124,7 +124,7 @@ export function RoutinesView({
 
       return right.createdAt - left.createdAt;
     });
-  }, [clockNow, routines, runnerState.sessions]);
+  }, [routines, runnerState.sessions, todayDay]);
 
   useEffect(() => {
     void getRunnerState().then(setRunnerState);
@@ -151,7 +151,7 @@ export function RoutinesView({
     onMessage(null);
 
     try {
-      const result = await startRoutine(routine);
+      const result = await startRoutine(routine, 'sidepanel');
 
       if (result.alreadyRunning) {
         onMessage(`Runner already active for "${routine.name}". Showing existing runner.`);
@@ -189,7 +189,7 @@ export function RoutinesView({
     onMessage(null);
 
     try {
-      const stopped = await stopActiveRoutine(routineToDelete.id);
+      const stopped = await stopActiveRoutine(routineToDelete.id, 'sidepanel');
       await deleteRoutine(routineToDelete.id);
 
       onMessage(stopped ? 'Routine deleted and active runner closed.' : 'Routine deleted.');
@@ -343,7 +343,7 @@ export function RoutinesView({
                 key={routine.id}
                 routine={routine}
                 isRunning={isRunning}
-                isScheduledToday={isRoutineScheduledForDay(routine, new Date(clockNow).getDay())}
+                isScheduledToday={isRoutineScheduledForDay(routine, todayDay)}
                 isExpanded={isExpanded}
                 busyAction={busyAction}
                 clockNow={clockNow}

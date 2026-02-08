@@ -22,7 +22,12 @@ import {
   setFocusModeActive,
   updateRoutineSession,
 } from '@/lib/session';
-import { ensureRunForSession, finalizeRun, logStepChange } from '@/lib/run-history';
+import {
+  ensureRunForSession,
+  finalizeRun,
+  logRunStepSyncAction,
+  logStepChange,
+} from '@/lib/run-history';
 
 interface FocusControllerGetStateMessage {
   type: 'focus-controller:get-state';
@@ -140,7 +145,7 @@ async function handleRunnerTabRemoved(tabId: number) {
     }
 
     if (transition.nextIndexChanged) {
-      await logStepChangeForSession(session, transition.nextIndex);
+      await logStepChangeForSession(session, transition.nextIndex, 'tab-removed-shift');
     }
 
     await updateRoutineSession(transition.nextSession);
@@ -203,7 +208,7 @@ async function handleRunnerGroupRemoved(groupId: number) {
 
 async function finalizeSessionRun(session: Parameters<typeof updateRoutineSession>[0], reason: 'tabs-closed' | 'group-removed') {
   if (typeof session.runId === 'number') {
-    await finalizeRun(session.runId, session.routineId, Date.now(), reason);
+    await finalizeRun(session.runId, session.routineId, Date.now(), reason, 'system');
     return;
   }
 
@@ -212,15 +217,31 @@ async function finalizeSessionRun(session: Parameters<typeof updateRoutineSessio
     return;
   }
 
-  const ensured = await ensureRunForSession(session, routine);
+  const ensured = await ensureRunForSession(session, routine, 'system');
   if (ensured?.runId) {
-    await finalizeRun(ensured.runId, session.routineId, Date.now(), reason);
+    await finalizeRun(ensured.runId, session.routineId, Date.now(), reason, 'system');
   }
 }
 
-async function logStepChangeForSession(session: Parameters<typeof updateRoutineSession>[0], stepIndex: number) {
+async function logStepChangeForSession(
+  session: Parameters<typeof updateRoutineSession>[0],
+  stepIndex: number,
+  action?: 'tab-removed-shift',
+) {
+  const fromStepIndex = session.currentIndex;
+
   if (typeof session.runId === 'number') {
     await logStepChange(session.runId, session.routineId, stepIndex);
+    if (action) {
+      await logRunStepSyncAction({
+        runId: session.runId,
+        routineId: session.routineId,
+        source: 'system',
+        action,
+        fromStepIndex,
+        toStepIndex: stepIndex,
+      });
+    }
     return;
   }
 
@@ -229,10 +250,20 @@ async function logStepChangeForSession(session: Parameters<typeof updateRoutineS
     return;
   }
 
-  const ensured = await ensureRunForSession(session, routine);
+  const ensured = await ensureRunForSession(session, routine, 'system');
   if (ensured?.runId) {
     await updateRoutineSession({ ...session, runId: ensured.runId });
     await logStepChange(ensured.runId, session.routineId, stepIndex);
+    if (action) {
+      await logRunStepSyncAction({
+        runId: ensured.runId,
+        routineId: session.routineId,
+        source: 'system',
+        action,
+        fromStepIndex,
+        toStepIndex: stepIndex,
+      });
+    }
   }
 }
 
@@ -270,12 +301,12 @@ function attachCommandListeners() {
 
 async function handleCommand(command: string) {
   if (command === NAVIGATE_PREVIOUS_COMMAND) {
-    await navigateSessionByOffset(-1);
+    await navigateSessionByOffset(-1, undefined, 'background');
     return;
   }
 
   if (command === NAVIGATE_NEXT_COMMAND) {
-    await navigateSessionByOffset(1);
+    await navigateSessionByOffset(1, undefined, 'background');
   }
 }
 
@@ -304,9 +335,9 @@ async function handleFocusControllerMessage(
         }
 
         if (typeof message.routineId === 'number') {
-          await navigateSessionByOffset(message.routineId, message.offset);
+          await navigateSessionByOffset(message.routineId, message.offset, 'focus-controller');
         } else {
-          await navigateSessionByOffset(message.offset);
+          await navigateSessionByOffset(message.offset, undefined, 'focus-controller');
         }
 
         return {
@@ -316,9 +347,9 @@ async function handleFocusControllerMessage(
 
       case 'focus-controller:stop':
         if (typeof message.routineId === 'number') {
-          await stopActiveRoutine(message.routineId);
+          await stopActiveRoutine(message.routineId, 'focus-controller');
         } else {
-          await stopActiveRoutine();
+          await stopActiveRoutine(undefined, 'focus-controller');
         }
 
         if ((await getRunnerState()).sessions.length === 0) {
