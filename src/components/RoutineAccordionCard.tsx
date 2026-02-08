@@ -18,6 +18,7 @@ import { getDisplayUrl } from '@/lib/url';
 interface RoutineAccordionCardProps {
   routine: Routine;
   isRunning: boolean;
+  isScheduledToday: boolean;
   isExpanded: boolean;
   busyAction: string | null;
   clockNow: number;
@@ -34,6 +35,7 @@ interface RoutineAccordionCardProps {
 export function RoutineAccordionCard({
   routine,
   isRunning,
+  isScheduledToday,
   isExpanded,
   busyAction,
   clockNow,
@@ -84,6 +86,7 @@ export function RoutineAccordionCard({
             <p className="truncate text-sm font-medium">{routine.name}</p>
             <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2 text-xs">
               {isRunning && <Badge variant="secondary">Running</Badge>}
+              {isScheduledToday && <Badge variant="outline">Today</Badge>}
               <span>{routine.links.length} links</span>
               <span>{lastRunLabel}</span>
             </div>

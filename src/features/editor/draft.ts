@@ -1,10 +1,11 @@
 import { normalizeRoutineUrl } from '@/lib/routines';
-import type { RoutineLink } from '@/lib/types';
+import type { RoutineLink, RoutineScheduleDay } from '@/lib/types';
 import { getDisplayUrl } from '@/lib/url';
 
 export interface UnsavedChanges {
   hasChanges: boolean;
   nameChanged: boolean;
+  scheduleChanged: boolean;
   addedUrls: string[];
   removedUrls: string[];
   orderChanged: boolean;
@@ -15,8 +16,10 @@ export interface UnsavedChangesInput {
   loadedRoutineId: number | null;
   initialName: string;
   initialLinks: RoutineLink[];
+  initialScheduleDays: RoutineScheduleDay[];
   currentName: string;
   draftLinks: RoutineLink[];
+  currentScheduleDays: RoutineScheduleDay[];
 }
 
 export function computeUnsavedChanges({
@@ -24,13 +27,16 @@ export function computeUnsavedChanges({
   loadedRoutineId,
   initialName,
   initialLinks,
+  initialScheduleDays,
   currentName,
   draftLinks,
+  currentScheduleDays,
 }: UnsavedChangesInput): UnsavedChanges {
   if (routineId && loadedRoutineId !== routineId) {
     return {
       hasChanges: false,
       nameChanged: false,
+      scheduleChanged: false,
       addedUrls: [],
       removedUrls: [],
       orderChanged: false,
@@ -49,10 +55,15 @@ export function computeUnsavedChanges({
   const removedUrls = initialUrls.filter((url) => !draftSet.has(url));
   const sameMembers = addedUrls.length === 0 && removedUrls.length === 0 && initialUrls.length === draftUrls.length;
   const orderChanged = sameMembers && draftUrls.some((url, index) => url !== initialUrls[index]);
+  const sortedInitialSchedule = [...initialScheduleDays].sort((left, right) => left - right);
+  const sortedCurrentSchedule = [...currentScheduleDays].sort((left, right) => left - right);
+  const scheduleChanged = sortedInitialSchedule.length !== sortedCurrentSchedule.length
+    || sortedInitialSchedule.some((day, index) => day !== sortedCurrentSchedule[index]);
 
   return {
-    hasChanges: nameChanged || addedUrls.length > 0 || removedUrls.length > 0 || orderChanged,
+    hasChanges: nameChanged || scheduleChanged || addedUrls.length > 0 || removedUrls.length > 0 || orderChanged,
     nameChanged,
+    scheduleChanged,
     addedUrls,
     removedUrls,
     orderChanged,

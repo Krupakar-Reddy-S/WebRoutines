@@ -22,13 +22,23 @@ import { db } from '@/lib/db';
 import {
   createRoutine,
   createRoutineLink,
+  normalizeRoutineScheduleDays,
   updateRoutine,
 } from '@/lib/routines';
 import { formatDateLabel, formatDateTimeLabel, formatLastRunLabel } from '@/lib/time';
-import type { RoutineLink } from '@/lib/types';
+import type { RoutineLink, RoutineScheduleDay } from '@/lib/types';
 import { getDisplayUrl } from '@/lib/url';
 
 type LeaveTarget = 'routines' | 'settings';
+const SCHEDULE_DAY_OPTIONS: Array<{ day: RoutineScheduleDay; label: string; ariaLabel: string }> = [
+  { day: 1, label: 'M', ariaLabel: 'Monday' },
+  { day: 2, label: 'T', ariaLabel: 'Tuesday' },
+  { day: 3, label: 'W', ariaLabel: 'Wednesday' },
+  { day: 4, label: 'T', ariaLabel: 'Thursday' },
+  { day: 5, label: 'F', ariaLabel: 'Friday' },
+  { day: 6, label: 'S', ariaLabel: 'Saturday' },
+  { day: 0, label: 'S', ariaLabel: 'Sunday' },
+];
 
 interface EditorViewProps {
   routineId: number | null;
@@ -51,6 +61,8 @@ export function EditorView({
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [initialName, setInitialName] = useState('');
   const [initialLinks, setInitialLinks] = useState<RoutineLink[]>([]);
+  const [scheduleDays, setScheduleDays] = useState<RoutineScheduleDay[]>([]);
+  const [initialScheduleDays, setInitialScheduleDays] = useState<RoutineScheduleDay[]>([]);
   const [draggingLinkId, setDraggingLinkId] = useState<string | null>(null);
   const [dropTargetLinkId, setDropTargetLinkId] = useState<string | null>(null);
   const [confirmLinkRemovalId, setConfirmLinkRemovalId] = useState<string | null>(null);
@@ -89,6 +101,9 @@ export function EditorView({
     setDraftLinks(routine.links.map((link) => ({ ...link })));
     setInitialName(routine.name);
     setInitialLinks(routine.links.map((link) => ({ ...link })));
+    const nextScheduleDays = normalizeRoutineScheduleDays(routine.schedule?.days);
+    setScheduleDays(nextScheduleDays);
+    setInitialScheduleDays(nextScheduleDays);
     setNewLinkInput('');
     setDraggingLinkId(null);
     setDropTargetLinkId(null);
@@ -114,10 +129,12 @@ export function EditorView({
       loadedRoutineId,
       initialName,
       initialLinks,
+      initialScheduleDays,
       currentName: name,
       draftLinks,
+      currentScheduleDays: scheduleDays,
     }),
-    [draftLinks, initialLinks, initialName, loadedRoutineId, name, routineId],
+    [draftLinks, initialLinks, initialName, initialScheduleDays, loadedRoutineId, name, routineId, scheduleDays],
   );
 
   const metadataText = useMemo(() => {
@@ -196,10 +213,18 @@ export function EditorView({
 
     try {
       if (routineId) {
-        await updateRoutine(routineId, { name: trimmedName, links: draftLinks });
+        await updateRoutine(routineId, {
+          name: trimmedName,
+          links: draftLinks,
+          schedule: scheduleDays.length > 0 ? { days: [...scheduleDays] } : undefined,
+        });
         onMessage('Routine updated.');
       } else {
-        await createRoutine({ name: trimmedName, links: draftLinks });
+        await createRoutine({
+          name: trimmedName,
+          links: draftLinks,
+          schedule: scheduleDays.length > 0 ? { days: [...scheduleDays] } : undefined,
+        });
         onMessage('Routine created.');
       }
 
@@ -343,8 +368,10 @@ export function EditorView({
     setName('');
     setNewLinkInput('');
     setDraftLinks([]);
+    setScheduleDays([]);
     setInitialName('');
     setInitialLinks([]);
+    setInitialScheduleDays([]);
     setDraggingLinkId(null);
     setDropTargetLinkId(null);
     setConfirmLinkRemovalId(null);
@@ -446,6 +473,44 @@ export function EditorView({
               </div>
               <p className="text-xs text-muted-foreground">
                 Paste one or more URLs here. Supported formats: comma-separated or one URL per line.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label>Schedule (optional)</Label>
+                <p className="text-xs text-muted-foreground">
+                  {scheduleDays.length === 0 ? 'Any day' : `${scheduleDays.length} day${scheduleDays.length === 1 ? '' : 's'} selected`}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {SCHEDULE_DAY_OPTIONS.map((option) => {
+                  const selected = scheduleDays.includes(option.day);
+
+                  return (
+                    <Button
+                      key={option.day}
+                      type="button"
+                      size="xs"
+                      variant={selected ? 'secondary' : 'outline'}
+                      aria-pressed={selected}
+                      aria-label={`Toggle ${option.ariaLabel}`}
+                      onClick={() => {
+                        setScheduleDays((previous) => {
+                          const next = previous.includes(option.day)
+                            ? previous.filter((day) => day !== option.day)
+                            : [...previous, option.day];
+                          return normalizeRoutineScheduleDays(next);
+                        });
+                      }}
+                    >
+                      {option.label}
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Selected days are highlighted in the routines list as today matches.
               </p>
             </div>
 

@@ -24,6 +24,8 @@ import {
   createRoutineBackupPayload,
   deleteRoutine,
   importRoutines,
+  hasRoutineSchedule,
+  isRoutineScheduledForDay,
   listRoutines,
   parseRoutineBackup,
 } from '@/lib/routines';
@@ -72,8 +74,24 @@ export function RoutinesView({
     }
 
     const activeByRoutine = new Map(runnerState.sessions.map((session) => [session.routineId, session.startedAt]));
+    const todayDay = new Date(clockNow).getDay();
 
     return [...routines].sort((left, right) => {
+      const leftBucket = isRoutineScheduledForDay(left, todayDay)
+        ? 0
+        : hasRoutineSchedule(left)
+          ? 2
+          : 1;
+      const rightBucket = isRoutineScheduledForDay(right, todayDay)
+        ? 0
+        : hasRoutineSchedule(right)
+          ? 2
+          : 1;
+
+      if (leftBucket !== rightBucket) {
+        return leftBucket - rightBucket;
+      }
+
       const leftRunningStamp = left.id ? activeByRoutine.get(left.id) : undefined;
       const rightRunningStamp = right.id ? activeByRoutine.get(right.id) : undefined;
 
@@ -106,7 +124,7 @@ export function RoutinesView({
 
       return right.createdAt - left.createdAt;
     });
-  }, [routines, runnerState.sessions]);
+  }, [clockNow, routines, runnerState.sessions]);
 
   useEffect(() => {
     void getRunnerState().then(setRunnerState);
@@ -325,6 +343,7 @@ export function RoutinesView({
                 key={routine.id}
                 routine={routine}
                 isRunning={isRunning}
+                isScheduledToday={isRoutineScheduledForDay(routine, new Date(clockNow).getDay())}
                 isExpanded={isExpanded}
                 busyAction={busyAction}
                 clockNow={clockNow}

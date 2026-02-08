@@ -1,9 +1,10 @@
 import { db } from '@/lib/db';
-import type { Routine, RoutineLink } from '@/lib/types';
+import type { Routine, RoutineLink, RoutineScheduleDay } from '@/lib/types';
 
 export interface RoutineInput {
   name: string;
   links: RoutineLink[];
+  schedule?: Routine['schedule'];
 }
 
 interface BackupLinkRecord {
@@ -14,6 +15,7 @@ interface BackupLinkRecord {
 interface BackupRoutineRecord {
   name?: unknown;
   links?: unknown;
+  schedule?: unknown;
 }
 
 interface BackupRootRecord {
@@ -73,6 +75,53 @@ export function createRoutineLink(url: string, title?: string): RoutineLink {
   };
 }
 
+export function normalizeRoutineScheduleDays(input: unknown): RoutineScheduleDay[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  const dedupe = new Set<RoutineScheduleDay>();
+
+  input.forEach((value) => {
+    const day = Number(value);
+    if (!Number.isInteger(day) || day < 0 || day > 6) {
+      return;
+    }
+
+    dedupe.add(day as RoutineScheduleDay);
+  });
+
+  return [...dedupe].sort((left, right) => left - right);
+}
+
+export function normalizeRoutineSchedule(input: unknown): Routine['schedule'] | undefined {
+  if (!input || typeof input !== 'object') {
+    return undefined;
+  }
+
+  const candidate = input as { days?: unknown };
+  const days = normalizeRoutineScheduleDays(candidate.days);
+
+  if (days.length === 0) {
+    return undefined;
+  }
+
+  return { days };
+}
+
+export function hasRoutineSchedule(routine: Routine): boolean {
+  return normalizeRoutineScheduleDays(routine.schedule?.days).length > 0;
+}
+
+export function isRoutineScheduledForDay(routine: Routine, day: number): boolean {
+  const safeDay = Number(day);
+  if (!Number.isInteger(safeDay) || safeDay < 0 || safeDay > 6) {
+    return false;
+  }
+
+  return normalizeRoutineScheduleDays(routine.schedule?.days).includes(safeDay as RoutineScheduleDay);
+}
+
 export async function listRoutines(): Promise<Routine[]> {
   const routines = await db.routines.toArray();
 
@@ -89,6 +138,7 @@ export async function createRoutine(input: RoutineInput): Promise<number> {
   return db.routines.add({
     name: input.name.trim(),
     links: input.links,
+    schedule: normalizeRoutineSchedule(input.schedule),
     createdAt: now,
     updatedAt: now,
   });
@@ -114,6 +164,7 @@ export async function importRoutines(routineInputs: RoutineInput[]): Promise<num
       await db.routines.add({
         name,
         links,
+        schedule: normalizeRoutineSchedule(input.schedule),
         createdAt: now,
         updatedAt: now,
       });
@@ -128,6 +179,7 @@ export async function updateRoutine(id: number, input: RoutineInput): Promise<vo
   await db.routines.update(id, {
     name: input.name.trim(),
     links: input.links,
+    schedule: normalizeRoutineSchedule(input.schedule),
     updatedAt: Date.now(),
   });
 }
@@ -144,7 +196,7 @@ export async function setRoutineLastRunAt(id: number, timestamp: number): Promis
 
 export function createRoutineBackupPayload(routines: Routine[]) {
   return {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     routines: routines.map((routine) => ({
       name: routine.name,
@@ -152,6 +204,9 @@ export function createRoutineBackupPayload(routines: Routine[]) {
         url: link.url,
         title: link.title,
       })),
+      ...(hasRoutineSchedule(routine)
+        ? { schedule: normalizeRoutineSchedule(routine.schedule) }
+        : {}),
     })),
   };
 }
@@ -228,6 +283,7 @@ function parseBackupRoutine(record: BackupRoutineRecord): RoutineInput | null {
   return {
     name,
     links,
+    schedule: normalizeRoutineSchedule(record.schedule),
   };
 }
 
