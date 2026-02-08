@@ -23,6 +23,11 @@ WebRoutines is a Chrome MV3 extension for running daily website routines from a 
 - `browser.storage.session` for active runner state
 - `browser.storage.local` for app settings
 
+## Extension source layout
+- Extension runtime source lives under `src/`:
+  - `src/core`, `src/adapters`, `src/features`, `src/entrypoints`, `src/components`, `src/lib`
+- Extension static assets are in `src/public/`.
+
 ## Local development
 ```bash
 bun install
@@ -51,16 +56,16 @@ bun run build
 Load `.output/chrome-mv3` in `chrome://extensions` with Developer mode enabled.
 
 ## Static site
-- Path: `site/`
+- Path: `astro-site/`
 - Purpose: static landing/docs/privacy pages for project-facing documentation.
-- Stack: plain HTML with Tailwind CDN (no framework, no build pipeline).
-- Deployment: GitHub Pages setup is intentionally deferred in this phase.
+- Stack: Astro.
+- Deployment: GitHub Pages via `.github/workflows/astro.yml`.
 
 ## Docs map
 - `docs/PRD.md`: current product + architecture source of truth.
 - `docs/feature-list-*.md`: phased implementation history/plans.
 - `docs/extra/`: optional external/reference context for AI chat and research; not authoritative runtime source of truth.
-- `site/`: external landing/docs surface (non-runtime, static pages).
+- `astro-site/`: external landing/docs surface (non-extension runtime).
 
 ## Docs governance
 Behavior changes must update `README.md` and `docs/PRD.md` in the same PR.

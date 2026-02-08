@@ -4,6 +4,8 @@ import { defineConfig } from 'wxt';
 const E2E_MANIFEST_KEY = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv5baQZcM+y8zQ71Mo2UmFRaO6byyXIe15Ym79UY+v7dFUL2AZDv6KvD2mNMUWheX3wUu5zqC4Iv5PJLTeuReCuoheiwphPKfZbF0Uwm9hs0gxscolBWLbn60yvGODNm1K4ceHS3eULZNr5+RAvCwU2zg3sEYOEGF8zcc1P8TyJVx8xwbSa3d5JzM6/Q/TdseFtxSUdjy6IR1rrqHM+TRSx3ucdVfLJcbv6ZoGL9Qxf02H0OaHj7u+HrP8pkbl+X6LupCBVbZBrKh4CTWuetVdnRAEwJNfE6s3V2SRWAdsoSskcrFGTzLxd8IGKEl9bCQz70TSeqSP+w1Xafc4fqWywIDAQAB';
 
 export default defineConfig({
+  srcDir: 'src',
+  publicDir: 'src/public',
   modules: ['@wxt-dev/module-react'],
   react: {
     vite: {
