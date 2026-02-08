@@ -148,6 +148,7 @@ function buildHistoryStats(
     return {
       totalRuns: 0,
       totalDurationMs: 0,
+      averageDurationMs: 0,
       completionRate: 0,
     };
   }
@@ -155,6 +156,7 @@ function buildHistoryStats(
   return {
     totalRuns: totalRows,
     totalDurationMs,
+    averageDurationMs: Math.round(totalDurationMs / totalRows),
     completionRate: Math.round((completedCount / totalRows) * 100),
   };
 }

@@ -5,6 +5,7 @@ WebRoutines is a Chrome MV3 extension for running daily website routines from a 
 ## Current product behavior
 - Tab-group-only runtime: active sessions use `tab-group` mode (legacy `same-tab` is read-compat only for old stored records).
 - One active runner per routine, with multiple routines allowed concurrently.
+- Optional day-of-week routine scheduling with today-priority sorting.
 - Tab loading strategies:
   - `eager`: open all routine tabs at start.
   - `lazy`: open tabs as you navigate.
@@ -12,7 +13,8 @@ WebRoutines is a Chrome MV3 extension for running daily website routines from a 
   - Previous, next, jump to step, open current, stop.
   - Focused runner switching.
 - Focus mode mini-controller on web pages (first tab of the focused runner group).
-- Local run history with filters and summary stats (runs, total time, completion rate).
+- Local run history with filters, summary stats (runs, total time, avg run time, completion), and per-run detail view.
+- Per-run detail includes chronological action timeline, per-step notes, and step time breakdown.
 - Import/export JSON backups, import-from-open-tabs, and drag/drop routine editing.
 
 ## Stack

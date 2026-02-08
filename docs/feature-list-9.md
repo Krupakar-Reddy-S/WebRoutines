@@ -58,12 +58,12 @@ Scope:
 - Add average run time card in history summary.
 
 Checklist:
-- [ ] Step time accumulation implemented and persisted.
-- [ ] Manual tab activation sync implemented.
-- [ ] Step-sync events logged.
-- [ ] History detail shows time breakdown.
-- [ ] History summary shows average run time.
-- [ ] Verification gates passed.
+- [x] Step time accumulation implemented and persisted.
+- [x] Manual tab activation sync implemented.
+- [x] Step-sync events logged.
+- [x] History detail shows time breakdown.
+- [x] History summary shows average run time.
+- [x] Verification gates passed.
 
 Local checks:
 1. Verify different dwell times produce expected relative step-time bars.
@@ -82,3 +82,4 @@ Local checks:
 - 2026-02-08: Feature List 9 phase plan created.
 - 2026-02-08: Phase A completed (schedule model, editor toggles, list ordering, backup schedule support) with passing lint/compile/test/build/test:e2e.
 - 2026-02-08: Phase B completed (action timeline table + logging, step notes in runner, history run-detail route/view) with passing lint/compile/test/build/test:e2e.
+- 2026-02-08: Phase C completed (active step timers + manual tab step sync + history avg time/time-breakdown) with passing lint/compile/test/build/test:e2e.

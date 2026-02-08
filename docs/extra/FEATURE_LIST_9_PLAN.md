@@ -1,10 +1,10 @@
-# Feature List 8: Browsing Intelligence Layer
+# Feature List 9: Browsing Intelligence Layer
 
 > Post–FL7. Builds on WebRoutines' unique advantage: it already knows which sites you visit, in what order, how long you spend, and whether you finish.
 
 ---
 
-## 8A — Per-Routine Time Analytics
+## 9A — Per-Routine Time Analytics
 
 **What**: Track how long you actively spend on each tab during a routine run, then surface that data in the History view.
 
@@ -28,7 +28,7 @@
 
 ---
 
-## 8B — Reading Position Memory
+## 9B — Reading Position Memory
 
 **What**: Auto-save scroll position per URL per routine. When you re-run the routine tomorrow, each tab restores to where you left off last time.
 
@@ -49,7 +49,7 @@
 
 ---
 
-## 8C — Page Change Detection
+## 9C — Page Change Detection
 
 **What**: Before starting a routine, show which sites have changed since the last run. Optionally skip unchanged sites.
 
@@ -89,7 +89,7 @@
 
 ---
 
-## 8D — Session Notes (Lightweight Annotations)
+## 9D — Session Notes (Lightweight Annotations)
 
 **What**: While running a routine, let the user jot a quick note per step. After the run, all notes are collected into a "session summary" viewable in History.
 
@@ -116,7 +116,7 @@
 
 ---
 
-## 8E — Day-of-Week Scheduling
+## 9E — Day-of-Week Scheduling
 
 **What**: Let users assign routines to specific days. The routines list highlights "today's routines" and dims the rest.
 
@@ -145,21 +145,21 @@
 ## Implementation Order
 
 ```
-8E  Day-of-Week Scheduling     ← smallest, highest daily UX impact
-8A  Per-Routine Time Analytics  ← enriches existing History, medium effort  
-8D  Session Notes               ← small, pairs with History enrichment
-8B  Reading Position Memory     ← invisible quality-of-life upgrade
-8C  Page Change Detection       ← most complex, most impressive, do last
+9E  Day-of-Week Scheduling     ← smallest, highest daily UX impact
+9A  Per-Routine Time Analytics  ← enriches existing History, medium effort  
+9D  Session Notes               ← small, pairs with History enrichment
+9B  Reading Position Memory     ← invisible quality-of-life upgrade
+9C  Page Change Detection       ← most complex, most impressive, do last
 ```
 
-**Rationale**: Start with 8E because it's tiny and immediately changes how the routines list feels — it goes from "a flat list of bookmarks" to "today's browsing plan." Then 8A enriches the History view (which is already built). 8D adds notes to the same History surface. 8B is invisible infrastructure. 8C is the marquee feature but needs the most work and permission negotiation, so it comes last when everything else is stable.
+**Rationale**: Start with 9E because it's tiny and immediately changes how the routines list feels — it goes from "a flat list of bookmarks" to "today's browsing plan." Then 9A enriches the History view (which is already built). 9D adds notes to the same History surface. 9B is invisible infrastructure. 9C is the marquee feature but needs the most work and permission negotiation, so it comes last when everything else is stable.
 
 ---
 
 ## What This Does NOT Include (Deliberately)
 
 - **AI summaries / digest generation** — requires API calls or local LLM, too complex for now. The session notes + markdown export covers 80% of the value with 5% of the effort.
-- **Smart reordering** — interesting but needs behavioral data collected over weeks first. Let time analytics (8A) accumulate data before building on top of it.
+- **Smart reordering** — interesting but needs behavioral data collected over weeks first. Let time analytics (9A) accumulate data before building on top of it.
 - **Data extraction / scraping** — powerful but architecturally heavy and permission-intensive. Revisit after v1.0 store launch.
 - **Routine sharing / templates** — needs users first. Build export/import polish instead.
 - **Timers, todos, habit tracking** — saturated, undifferentiated, doesn't leverage WebRoutines' unique data.

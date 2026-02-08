@@ -25,6 +25,11 @@ export interface RunStepNote {
   updatedAt: number;
 }
 
+export interface RunStepTime {
+  stepIndex: number;
+  activeMs: number;
+}
+
 export interface RoutineLink {
   id: string;
   url: string;
@@ -69,6 +74,7 @@ export interface RoutineRun {
   durationMs: number | null;
   stopReason?: RunStopReason;
   stepNotes?: RunStepNote[];
+  stepTimes?: RunStepTime[];
 }
 
 export interface RoutineRunEvent {

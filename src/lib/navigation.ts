@@ -272,6 +272,8 @@ async function destroyRoutineSession(
   stopReason: RunStopReason,
   source: RunActionEventSource,
 ): Promise<void> {
+  await requestBackgroundActiveTimeFlush(session.routineId);
+
   if (typeof session.runId === 'number') {
     await finalizeRun(session.runId, session.routineId, Date.now(), stopReason, source);
   } else {
@@ -286,6 +288,17 @@ async function destroyRoutineSession(
 
   await removeRoutineSession(session.routineId);
   await closeRunnerTabs(session);
+}
+
+async function requestBackgroundActiveTimeFlush(routineId?: number): Promise<void> {
+  try {
+    await browser.runtime.sendMessage({
+      type: 'runner:flush-active-time',
+      routineId,
+    });
+  } catch {
+    // Ignore if background context is unavailable.
+  }
 }
 
 async function closeRunnerTabs(session: RoutineSession): Promise<void> {
