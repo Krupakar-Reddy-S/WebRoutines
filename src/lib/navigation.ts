@@ -8,16 +8,30 @@ import {
   upsertRoutineSession,
 } from '@/lib/session';
 import { setRoutineLastRunAt } from '@/lib/routines';
-import { createRunForSession, ensureRunForSession, finalizeRun, logStepChange } from '@/lib/run-history';
+import {
+  createRunForSession,
+  ensureRunForSession,
+  finalizeRun,
+  logRunNavigationAction,
+  logStepChange,
+} from '@/lib/run-history';
 import { getSettings } from '@/lib/settings';
-import type { Routine, RoutineSession, RunStopReason, TabLoadMode } from '@/lib/types';
+import type { Routine, RoutineSession, RunActionEventSource, RunStopReason, TabLoadMode } from '@/lib/types';
 
 export interface StartRoutineResult {
   session: RoutineSession;
   alreadyRunning: boolean;
 }
 
-export async function startRoutine(routine: Routine): Promise<StartRoutineResult> {
+interface NavigationActionContext {
+  source: RunActionEventSource;
+  action: 'next' | 'previous' | 'jump' | 'open-current';
+}
+
+export async function startRoutine(
+  routine: Routine,
+  source: RunActionEventSource = 'system',
+): Promise<StartRoutineResult> {
   if (!routine.id) {
     throw new Error('Routine is missing an id. Save it before running.');
   }
@@ -30,7 +44,7 @@ export async function startRoutine(routine: Routine): Promise<StartRoutineResult
 
   if (existing) {
     await setFocusedRoutine(routine.id);
-    const ensured = await ensureRunForSession(existing, routine);
+    const ensured = await ensureRunForSession(existing, routine, source);
     let session = existing;
 
     if (ensured?.created) {
@@ -50,7 +64,7 @@ export async function startRoutine(routine: Routine): Promise<StartRoutineResult
     ? await startInLazyTabGroup(routine)
     : await startInEagerTabGroup(routine);
 
-  const runId = await createRunForSession(routine, session);
+  const runId = await createRunForSession(routine, session, source);
   session.runId = runId;
   await setRoutineLastRunAt(routine.id, session.startedAt);
   await upsertRoutineSession(session);
@@ -64,6 +78,7 @@ export async function startRoutine(routine: Routine): Promise<StartRoutineResult
 export async function navigateSessionByOffset(
   routineIdOrOffset: number,
   maybeOffset?: number,
+  source: RunActionEventSource = 'system',
 ): Promise<RoutineSession | null> {
   const target = await resolveTargetSession(routineIdOrOffset, maybeOffset);
 
@@ -72,11 +87,23 @@ export async function navigateSessionByOffset(
   }
 
   const { routine, session } = target;
+  const offset = maybeOffset ?? routineIdOrOffset;
 
-  return navigateToIndex(routine, session, session.currentIndex + (maybeOffset ?? routineIdOrOffset));
+  return navigateToIndex(
+    routine,
+    session,
+    session.currentIndex + offset,
+    {
+      source,
+      action: offset >= 0 ? 'next' : 'previous',
+    },
+  );
 }
 
-export async function openCurrentSessionLink(routineId?: number): Promise<RoutineSession | null> {
+export async function openCurrentSessionLink(
+  routineId?: number,
+  source: RunActionEventSource = 'system',
+): Promise<RoutineSession | null> {
   const target = await resolveTargetSession(routineId);
 
   if (!target) {
@@ -85,28 +112,42 @@ export async function openCurrentSessionLink(routineId?: number): Promise<Routin
 
   const { routine, session } = target;
 
-  return navigateToIndex(routine, session, session.currentIndex);
+  return navigateToIndex(
+    routine,
+    session,
+    session.currentIndex,
+    {
+      source,
+      action: 'open-current',
+    },
+  );
 }
 
-export async function stopActiveRoutine(routineId?: number): Promise<boolean> {
+export async function stopActiveRoutine(
+  routineId?: number,
+  source: RunActionEventSource = 'system',
+): Promise<boolean> {
   const target = await resolveTargetSession(routineId);
 
   if (!target) {
     return false;
   }
 
-  await destroyRoutineSession(target.session, 'user-stop');
+  await destroyRoutineSession(target.session, 'user-stop', source);
   return true;
 }
 
-export async function stopRoutineById(routineId: number): Promise<boolean> {
+export async function stopRoutineById(
+  routineId: number,
+  source: RunActionEventSource = 'system',
+): Promise<boolean> {
   const session = await getRoutineSession(routineId);
 
   if (!session) {
     return false;
   }
 
-  await destroyRoutineSession(session, 'user-stop');
+  await destroyRoutineSession(session, 'user-stop', source);
   return true;
 }
 
@@ -114,7 +155,7 @@ export async function stopAllRoutines(): Promise<void> {
   const state = await getRunnerState();
 
   for (const session of state.sessions) {
-    await destroyRoutineSession(session, 'user-stop');
+    await destroyRoutineSession(session, 'user-stop', 'system');
   }
 }
 
@@ -145,13 +186,14 @@ export async function navigateToIndex(
   routine: Routine,
   session: RoutineSession,
   index: number,
+  actionContext?: NavigationActionContext,
 ): Promise<RoutineSession> {
   if (routine.links.length === 0) {
     throw new Error('Routine has no links.');
   }
 
   const targetIndex = clampIndex(index, routine.links.length);
-  const runResult = await ensureRunForSession(session, routine);
+  const runResult = await ensureRunForSession(session, routine, actionContext?.source ?? 'system');
   let runId = session.runId;
 
   if (runResult) {
@@ -169,6 +211,17 @@ export async function navigateToIndex(
 
   if (targetIndex !== session.currentIndex && typeof runId === 'number' && routine.id) {
     await logStepChange(runId, routine.id, targetIndex);
+  }
+
+  if (typeof runId === 'number' && routine.id && actionContext) {
+    await logRunNavigationAction({
+      runId,
+      routineId: routine.id,
+      source: actionContext.source,
+      action: actionContext.action,
+      fromStepIndex: session.currentIndex,
+      toStepIndex: targetIndex,
+    });
   }
 
   await upsertRoutineSession(nextSession);
@@ -202,7 +255,7 @@ async function resolveTargetSession(
   const routine = await db.routines.get(session.routineId);
 
   if (!routine || routine.links.length === 0) {
-    await destroyRoutineSession(session, 'system-stop');
+    await destroyRoutineSession(session, 'system-stop', 'system');
     return null;
   }
 
@@ -214,15 +267,19 @@ async function resolveTargetSession(
   };
 }
 
-async function destroyRoutineSession(session: RoutineSession, stopReason: RunStopReason): Promise<void> {
+async function destroyRoutineSession(
+  session: RoutineSession,
+  stopReason: RunStopReason,
+  source: RunActionEventSource,
+): Promise<void> {
   if (typeof session.runId === 'number') {
-    await finalizeRun(session.runId, session.routineId, Date.now(), stopReason);
+    await finalizeRun(session.runId, session.routineId, Date.now(), stopReason, source);
   } else {
     const routine = await db.routines.get(session.routineId);
     if (routine?.id) {
-      const ensured = await ensureRunForSession(session, routine);
+      const ensured = await ensureRunForSession(session, routine, source);
       if (ensured?.runId) {
-        await finalizeRun(ensured.runId, session.routineId, Date.now(), stopReason);
+        await finalizeRun(ensured.runId, session.routineId, Date.now(), stopReason, source);
       }
     }
   }

@@ -103,6 +103,7 @@ describe('parseRoutineBackup', () => {
 describe('schedule helpers', () => {
   it('normalizes and sorts valid schedule days', () => {
     expect(normalizeRoutineScheduleDays([4, 1, '2', -1, 7, 1])).toEqual([1, 2, 4]);
+    expect(normalizeRoutineScheduleDays([])).toEqual([]);
     expect(normalizeRoutineScheduleDays('bad')).toEqual([]);
   });
 
@@ -118,5 +119,28 @@ describe('schedule helpers', () => {
     expect(hasRoutineSchedule(routine)).toBe(true);
     expect(isRoutineScheduledForDay(routine, 1)).toBe(true);
     expect(isRoutineScheduledForDay(routine, 2)).toBe(false);
+    expect(isRoutineScheduledForDay(routine, -1)).toBe(false);
+    expect(isRoutineScheduledForDay(routine, 7)).toBe(false);
+    expect(isRoutineScheduledForDay(routine, 1.5)).toBe(false);
+  });
+
+  it('returns false when schedule is missing or empty', () => {
+    const missingSchedule: Routine = {
+      name: 'Anytime',
+      links: [],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    const emptySchedule: Routine = {
+      name: 'Anytime',
+      links: [],
+      createdAt: 1,
+      updatedAt: 1,
+      schedule: { days: [] },
+    };
+
+    expect(hasRoutineSchedule(missingSchedule)).toBe(false);
+    expect(hasRoutineSchedule(emptySchedule)).toBe(false);
   });
 });

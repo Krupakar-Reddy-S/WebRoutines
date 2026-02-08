@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeftIcon, SettingsIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +34,7 @@ export function HistoryView({
   onOpenRunner,
   onOpenSettings,
 }: HistoryViewProps) {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [clockNow, setClockNow] = useState(() => Date.now());
 
@@ -168,6 +169,10 @@ export function HistoryView({
     onSelectRoutineFilter(String(routineId));
   }
 
+  function onOpenRunDetails(runId: number) {
+    navigate(`/history/run/${runId}`);
+  }
+
   function onPageChange(nextPage: number) {
     if (!Number.isFinite(nextPage)) {
       return;
@@ -294,6 +299,7 @@ export function HistoryView({
                     row={row}
                     clockNow={clockNow}
                     onFilterRoutine={onFocusRoutineFilter}
+                    onOpenRunDetails={onOpenRunDetails}
                   />
                 ))}
               </div>

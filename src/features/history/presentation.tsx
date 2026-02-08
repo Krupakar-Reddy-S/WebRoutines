@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { formatDuration, formatTimeOfDay, resolveRunDurationMs } from '@/features/history/filtering';
@@ -22,9 +23,15 @@ interface RunHistoryCardProps {
   row: HistoryRow;
   clockNow: number;
   onFilterRoutine: (routineId: number) => void;
+  onOpenRunDetails: (runId: number) => void;
 }
 
-export function RunHistoryCard({ row, clockNow, onFilterRoutine }: RunHistoryCardProps) {
+export function RunHistoryCard({
+  row,
+  clockNow,
+  onFilterRoutine,
+  onOpenRunDetails,
+}: RunHistoryCardProps) {
   const { run, routine } = row;
   const routineLabel = routine?.name ?? `Routine #${run.routineId}`;
   const runTimeLabel = formatTimeOfDay(run.startedAt);
@@ -76,6 +83,22 @@ export function RunHistoryCard({ row, clockNow, onFilterRoutine }: RunHistoryCar
           Stop reason: {run.stopReason.replace(/-/g, ' ')}
         </p>
       )}
+
+      <div className="mt-2">
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          onClick={() => {
+            if (typeof run.id === 'number') {
+              onOpenRunDetails(run.id);
+            }
+          }}
+          disabled={typeof run.id !== 'number'}
+        >
+          View details
+        </Button>
+      </div>
     </div>
   );
 }

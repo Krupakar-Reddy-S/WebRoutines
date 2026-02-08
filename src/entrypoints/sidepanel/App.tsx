@@ -14,6 +14,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { MessageBanner } from './components/MessageBanner';
 import { RecoveryCard } from './components/RecoveryCard';
 import { EditorView } from './views/EditorView';
+import { HistoryRunDetailView } from './views/HistoryRunDetailView';
 import { HistoryView } from './views/HistoryView';
 import { RunnerHomeView } from './views/RunnerHomeView';
 import { RoutinesView } from './views/RoutinesView';
@@ -158,6 +159,16 @@ function SidepanelShell() {
               />
             )}
           />
+          <Route
+            path="/history/run/:id"
+            element={(
+              <HistoryRunDetailRoute
+                onOpenHistory={() => openHistory()}
+                onOpenRunner={openRunner}
+                onOpenSettings={openSettings}
+              />
+            )}
+          />
           <Route path="/settings" element={<SettingsView onOpenRunner={openRunner} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -174,6 +185,12 @@ interface EditorRouteProps {
   onOpenRoutines: () => void;
   onMessage: (message: string | null) => void;
   onError: (message: string | null) => void;
+}
+
+interface HistoryRunDetailRouteProps {
+  onOpenHistory: () => void;
+  onOpenRunner: () => void;
+  onOpenSettings: () => void;
 }
 
 function EditorRoute({
@@ -196,6 +213,28 @@ function EditorRoute({
       onOpenRoutines={onOpenRoutines}
       onMessage={onMessage}
       onError={onError}
+    />
+  );
+}
+
+function HistoryRunDetailRoute({
+  onOpenHistory,
+  onOpenRunner,
+  onOpenSettings,
+}: HistoryRunDetailRouteProps) {
+  const params = useParams();
+  const parsedId = Number(params.id);
+
+  if (!Number.isFinite(parsedId)) {
+    return <Navigate to="/history" replace />;
+  }
+
+  return (
+    <HistoryRunDetailView
+      runId={parsedId}
+      onOpenHistory={onOpenHistory}
+      onOpenRunner={onOpenRunner}
+      onOpenSettings={onOpenSettings}
     />
   );
 }

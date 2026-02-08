@@ -37,11 +37,11 @@ Scope:
 - Add dedicated run detail route and UI.
 
 Checklist:
-- [ ] `runActionEvents` schema/type/query path implemented.
-- [ ] Navigation and system lifecycle actions logged.
-- [ ] Step notes persisted and rendered.
-- [ ] History run-detail route implemented.
-- [ ] Verification gates passed.
+- [x] `runActionEvents` schema/type/query path implemented.
+- [x] Navigation and system lifecycle actions logged.
+- [x] Step notes persisted and rendered.
+- [x] History run-detail route implemented.
+- [x] Verification gates passed.
 
 Local checks:
 1. Run routine with next/previous/jump/open-current and verify event order.
@@ -81,3 +81,4 @@ Local checks:
 ## Execution log
 - 2026-02-08: Feature List 9 phase plan created.
 - 2026-02-08: Phase A completed (schedule model, editor toggles, list ordering, backup schedule support) with passing lint/compile/test/build/test:e2e.
+- 2026-02-08: Phase B completed (action timeline table + logging, step notes in runner, history run-detail route/view) with passing lint/compile/test/build/test:e2e.

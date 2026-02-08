@@ -1,4 +1,4 @@
-import type { Routine, RoutineRun } from '@/lib/types';
+import type { Routine, RoutineRun, RunActionEvent } from '@/lib/types';
 
 export interface HistoryRow {
   run: RoutineRun;
@@ -22,4 +22,10 @@ export interface HistoryRowsQueryResult {
   rows: HistoryRow[];
   totalRows: number;
   stats: HistoryStats;
+}
+
+export interface HistoryRunDetailResult {
+  run: RoutineRun;
+  routine: Routine | null;
+  actionEvents: RunActionEvent[];
 }

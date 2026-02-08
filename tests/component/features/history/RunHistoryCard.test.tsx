@@ -34,6 +34,7 @@ describe('RunHistoryCard', () => {
         row={sampleRow}
         clockNow={Date.parse('2026-02-06T12:20:00.000Z')}
         onFilterRoutine={() => {}}
+        onOpenRunDetails={() => {}}
       />,
     );
 
@@ -52,6 +53,7 @@ describe('RunHistoryCard', () => {
         row={sampleRow}
         clockNow={Date.parse('2026-02-06T12:20:00.000Z')}
         onFilterRoutine={onFilterRoutine}
+        onOpenRunDetails={() => {}}
       />,
     );
 

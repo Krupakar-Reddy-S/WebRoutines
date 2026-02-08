@@ -4,7 +4,12 @@ import { db } from '@/lib/db';
 import type { Routine, RoutineRun } from '@/lib/types';
 
 import { resolveRunDurationMs, runMatchesStatusFilter } from '@/features/history/filtering';
-import type { HistoryRowsQueryResult, HistoryStats, RunStatusFilter } from '@/features/history/types';
+import type {
+  HistoryRowsQueryResult,
+  HistoryRunDetailResult,
+  HistoryStats,
+  RunStatusFilter,
+} from '@/features/history/types';
 
 interface QueryHistoryRowsInput {
   routineId: number | null;
@@ -81,6 +86,28 @@ export async function queryRoutineFilterOptions(): Promise<Routine[]> {
       const rightStamp = right.lastRunAt ?? right.updatedAt;
       return rightStamp - leftStamp;
     });
+}
+
+export async function queryHistoryRunDetail(runId: number): Promise<HistoryRunDetailResult | null> {
+  if (!Number.isInteger(runId) || runId <= 0) {
+    return null;
+  }
+
+  const run = await db.runs.get(runId);
+  if (!run) {
+    return null;
+  }
+
+  const [routine, actionEvents] = await Promise.all([
+    db.routines.get(run.routineId),
+    db.runActionEvents.where('runId').equals(runId).sortBy('timestamp'),
+  ]);
+
+  return {
+    run,
+    routine: routine ?? null,
+    actionEvents,
+  };
 }
 
 function getRunsCollection(routineId: number | null) {
