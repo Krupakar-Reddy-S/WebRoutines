@@ -39,6 +39,9 @@ export function ConfirmDiscardDialog({
           {changes.nameChanged && (
             <p>Name changed.</p>
           )}
+          {changes.scheduleChanged && (
+            <p>Schedule changed.</p>
+          )}
           {changes.addedUrls.length > 0 && (
             <p>
               {`Added ${changes.addedUrls.length} link${changes.addedUrls.length === 1 ? '' : 's'}: ${summarizeUrlChanges(changes.addedUrls)}`}

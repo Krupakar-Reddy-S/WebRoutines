@@ -1,5 +1,10 @@
 export type RoutineRunMode = 'same-tab' | 'tab-group';
 export type TabLoadMode = 'eager' | 'lazy';
+export type RoutineScheduleDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export interface RoutineSchedule {
+  days: RoutineScheduleDay[];
+}
 
 export interface RoutineLink {
   id: string;
@@ -11,6 +16,7 @@ export interface Routine {
   id?: number;
   name: string;
   links: RoutineLink[];
+  schedule?: RoutineSchedule;
   lastRunAt?: number;
   createdAt: number;
   updatedAt: number;
