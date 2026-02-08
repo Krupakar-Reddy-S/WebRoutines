@@ -79,6 +79,10 @@ export function HistoryRunDetailView({
       : 'Partial';
 
   const stepNotes = [...(run.stepNotes ?? [])].sort((left, right) => left.stepIndex - right.stepIndex);
+  const stepTimes = [...(run.stepTimes ?? [])]
+    .filter((item) => item.activeMs > 0)
+    .sort((left, right) => left.stepIndex - right.stepIndex);
+  const maxStepMs = stepTimes.reduce((max, item) => Math.max(max, item.activeMs), 0);
 
   return (
     <>
@@ -149,6 +153,48 @@ export function HistoryRunDetailView({
 
       <Card>
         <CardHeader>
+          <CardTitle>Time Breakdown</CardTitle>
+          <CardDescription>{stepTimes.length} step{stepTimes.length === 1 ? '' : 's'} with active time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {stepTimes.length === 0 && (
+            <p className="text-sm text-muted-foreground">No active step timing recorded for this run.</p>
+          )}
+
+          {stepTimes.length > 0 && (
+            <div className="space-y-2">
+              {stepTimes.map((stepTime) => {
+                const link = detail.routine?.links[stepTime.stepIndex];
+                const widthPercent = maxStepMs > 0
+                  ? Math.max(6, Math.round((stepTime.activeMs / maxStepMs) * 100))
+                  : 0;
+                const isLongest = stepTime.activeMs === maxStepMs;
+
+                return (
+                  <div key={`time-${stepTime.stepIndex}`} className="space-y-1">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <p className="truncate font-medium">
+                        Step {stepTime.stepIndex + 1}
+                        {link?.url ? ` · ${safeDomainLabel(link.url)}` : ''}
+                      </p>
+                      <p className="text-muted-foreground">{formatDuration(stepTime.activeMs)}</p>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full transition-[width] ${isLongest ? 'bg-emerald-500' : 'bg-primary'}`}
+                        style={{ width: `${widthPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Step Notes</CardTitle>
           <CardDescription>{stepNotes.length} note{stepNotes.length === 1 ? '' : 's'}</CardDescription>
         </CardHeader>
@@ -207,7 +253,7 @@ function StepNoteRow({
     <div className="rounded-lg border border-border/70 px-3 py-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-medium">Step {note.stepIndex + 1}</p>
-        {link?.url && <span className="text-muted-foreground truncate">{new URL(link.url).hostname}</span>}
+        {link?.url && <span className="text-muted-foreground truncate">{safeDomainLabel(link.url)}</span>}
         <span className="text-muted-foreground">{formatTimeOfDay(note.updatedAt)}</span>
       </div>
       <p className="mt-1 whitespace-pre-wrap text-sm">{note.note}</p>
@@ -237,4 +283,12 @@ function formatStepIndex(value: number | undefined): string {
   }
 
   return String(value + 1);
+}
+
+function safeDomainLabel(rawUrl: string): string {
+  try {
+    return new URL(rawUrl).hostname;
+  } catch {
+    return rawUrl;
+  }
 }

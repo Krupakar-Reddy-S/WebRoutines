@@ -6,13 +6,15 @@ WebRoutines is a Chrome MV3 side panel extension for repeat, ordered website wor
 Current user capabilities:
 - Create, edit, delete, import, and export routines.
 - Store ordered routine links with drag/drop editing and import-from-tabs flow.
+- Optionally schedule routines by day-of-week and prioritize today's routines in list ordering.
 - Run routines in tab-group mode only (one active runner per routine, multiple routines concurrently).
 - Choose tab loading strategy:
   - `eager`: open all tabs at routine start.
   - `lazy`: open tabs progressively during navigation.
 - Navigate focused runner from side panel and popup (previous, next, jump, open current, stop).
+- Capture per-step runner notes during active runs.
 - Enter focus mode with compact on-page mini-controller.
-- View history in side panel with filters, grouping, and summary stats.
+- View history in side panel with filters, grouping, summary stats, and per-run detail.
 
 ## Problem statement
 Users who revisit the same sets of pages daily need a faster, deterministic way to reopen and navigate those pages without manual tab and URL management.
@@ -61,6 +63,7 @@ Permissions in manifest:
 - `id` (number, auto)
 - `name` (string)
 - `links` (array of `{ id: string; url: string; title?: string }`)
+- `schedule` (`{ days: Array<0|1|2|3|4|5|6> }`, optional)
 - `lastRunAt` (number, optional)
 - `createdAt` (number)
 - `updatedAt` (number)
@@ -92,6 +95,8 @@ Permissions in manifest:
 - `mode` (`same-tab` | `tab-group`) (legacy read-compat retained)
 - `durationMs` (number | null)
 - `stopReason` (`user-stop` | `tabs-closed` | `group-removed` | `system-stop` | `unknown`)
+- `stepNotes` (array of `{ stepIndex, note, updatedAt }`, optional)
+- `stepTimes` (array of `{ stepIndex, activeMs }`, optional)
 
 ### Routine run event (`runEvents`)
 - `id` (number, auto)
@@ -100,6 +105,18 @@ Permissions in manifest:
 - `timestamp` (number)
 - `type` (`start` | `step` | `stop`)
 - `stepIndex` (number | undefined)
+
+### Routine action timeline event (`runActionEvents`)
+- `id` (number, auto)
+- `runId` (number)
+- `routineId` (number)
+- `timestamp` (number)
+- `type` (`run-start` | `navigate` | `step-sync` | `run-stop`)
+- `action` (`next` | `previous` | `jump` | `open-current` | `manual-tab-activate` | `tab-removed-shift` | `group-removed` | `tabs-closed` | `user-stop` | `system-stop`) (optional)
+- `source` (`sidepanel` | `popup` | `focus-controller` | `background` | `system`)
+- `fromStepIndex` (number | undefined)
+- `toStepIndex` (number | undefined)
+- `meta.stopReason` (`RunStopReason`, optional)
 
 ### App settings (`chrome.storage.local`)
 - `staticTheme` (`system` | `light` | `dark`)
@@ -112,7 +129,7 @@ Permissions in manifest:
   - Runner Home (default): active runner list + focused controls + focus mode entry.
   - Routines: routine management and start flows.
   - Editor: create/edit routine.
-  - History: run stats + filtered grouped run list.
+  - History: run stats + filtered grouped run list + run detail route (`/history/run/:id`).
   - Settings: appearance/tab-loading/runner/shortcut settings.
 - Popup:
   - Focused runner controls and quick navigation to side panel history/settings.
@@ -145,3 +162,6 @@ Permissions in manifest:
 - 2026-02-07: Feature 7 Phase B completed (unit/component/e2e local testing stack).
 - 2026-02-07: Feature 7 Phase C docs cleanup started (README/PRD sync + AGENTS.md governance).
 - 2026-02-07: Feature 8 completed (static site scaffold; now maintained under `/astro-site`).
+- 2026-02-08: Feature 9 Phase A completed (routine day-of-week scheduling + today-priority ordering).
+- 2026-02-08: Feature 9 Phase B completed (run action timeline, run notes, history run detail route).
+- 2026-02-08: Feature 9 Phase C completed (per-step active timing, manual step sync, history avg time + breakdown).

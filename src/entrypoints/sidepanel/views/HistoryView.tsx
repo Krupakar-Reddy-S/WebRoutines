@@ -255,7 +255,7 @@ export function HistoryView({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <StatCard
               label="Total runs"
               value={String(historyData?.stats.totalRuns ?? 0)}
@@ -263,6 +263,10 @@ export function HistoryView({
             <StatCard
               label="Total time"
               value={formatDuration(historyData?.stats.totalDurationMs ?? 0)}
+            />
+            <StatCard
+              label="Avg run time"
+              value={formatDuration(historyData?.stats.averageDurationMs ?? 0)}
             />
             <StatCard
               label="Completion"

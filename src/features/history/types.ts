@@ -13,6 +13,7 @@ export interface HistoryGroup {
 export interface HistoryStats {
   totalRuns: number;
   totalDurationMs: number;
+  averageDurationMs: number;
   completionRate: number;
 }
 

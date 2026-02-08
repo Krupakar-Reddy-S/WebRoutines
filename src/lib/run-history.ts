@@ -9,6 +9,7 @@ import type {
   RoutineSession,
   RunStopReason,
   RunStepNote,
+  RunStepTime,
 } from '@/lib/types';
 
 interface EnsureRunResult {
@@ -145,6 +146,38 @@ export async function upsertRunStepNote(
 
   await db.runs.update(runId, {
     stepNotes: nextStepNotes.length > 0 ? nextStepNotes : undefined,
+  });
+}
+
+export async function addRunStepActiveMs(
+  runId: number,
+  stepIndex: number,
+  activeMsDelta: number,
+): Promise<void> {
+  const safeDelta = Math.max(0, Math.floor(activeMsDelta));
+  if (safeDelta <= 0) {
+    return;
+  }
+
+  const run = await db.runs.get(runId);
+  if (!run) {
+    return;
+  }
+
+  const stepTimes = run.stepTimes ?? [];
+  const existing = stepTimes.find((item) => item.stepIndex === stepIndex);
+  const withoutCurrentStep = stepTimes.filter((item) => item.stepIndex !== stepIndex);
+
+  const nextStepTime: RunStepTime = {
+    stepIndex,
+    activeMs: Math.max(0, Math.floor((existing?.activeMs ?? 0) + safeDelta)),
+  };
+
+  const nextStepTimes = [...withoutCurrentStep, nextStepTime]
+    .sort((left, right) => left.stepIndex - right.stepIndex);
+
+  await db.runs.update(runId, {
+    stepTimes: nextStepTimes,
   });
 }
 

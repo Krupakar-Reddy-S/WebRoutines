@@ -178,11 +178,15 @@ export function RunnerHomeView({
       return;
     }
 
+    if (stepNoteDirty) {
+      return;
+    }
+
     const existing = focusedRun.stepNotes?.find((item) => item.stepIndex === focusedSession.currentIndex)?.note ?? '';
     setStepNoteDraft(existing);
     setStepNoteDirty(false);
     setNoteStatus('idle');
-  }, [focusedRun, focusedSession]);
+  }, [focusedRun, focusedSession, stepNoteDirty]);
 
   const flushFocusedStepNote = useCallback(async () => {
     if (!focusedSession || typeof focusedSession.runId !== 'number' || !stepNoteDirty) {

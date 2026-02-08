@@ -1,3 +1,5 @@
+import Dexie from 'dexie';
+
 import { db } from '@/lib/db';
 import {
   applySessionTabRemoval,
@@ -20,14 +22,17 @@ import {
   getRunnerState,
   removeRoutineSession,
   setFocusModeActive,
+  setFocusedRoutine,
   updateRoutineSession,
 } from '@/lib/session';
 import {
+  addRunStepActiveMs,
   ensureRunForSession,
   finalizeRun,
   logRunStepSyncAction,
   logStepChange,
 } from '@/lib/run-history';
+import type { RoutineSession } from '@/lib/types';
 
 interface FocusControllerGetStateMessage {
   type: 'focus-controller:get-state';
@@ -53,12 +58,28 @@ interface FocusControllerOpenPanelMessage {
   type: 'focus-controller:open-sidepanel';
 }
 
-type FocusControllerMessage =
+interface RunnerFlushActiveTimeMessage {
+  type: 'runner:flush-active-time';
+  routineId?: number;
+}
+
+type RuntimeMessage =
   | FocusControllerGetStateMessage
   | FocusControllerSetFocusModeMessage
   | FocusControllerNavigateMessage
   | FocusControllerStopMessage
-  | FocusControllerOpenPanelMessage;
+  | FocusControllerOpenPanelMessage
+  | RunnerFlushActiveTimeMessage;
+
+interface ActiveStepTimer {
+  windowId: number;
+  routineId: number;
+  runId: number;
+  stepIndex: number;
+  startedAt: number;
+}
+
+const activeStepTimersByWindow = new Map<number, ActiveStepTimer>();
 
 async function configureSidePanelAction() {
   if (!browser.sidePanel?.setPanelBehavior) {
@@ -101,6 +122,22 @@ function attachRunnerLifecycleListeners() {
     browser.tabs.onMoved.addListener((tabId) => {
       runGuarded('tabs.onMoved', async () => {
         await handleRunnerTabMoved(tabId);
+      });
+    });
+  }
+
+  if (browser.tabs?.onActivated) {
+    browser.tabs.onActivated.addListener((activeInfo) => {
+      runGuarded('tabs.onActivated', async () => {
+        await handleRunnerTabActivated(activeInfo.tabId, activeInfo.windowId);
+      });
+    });
+  }
+
+  if (browser.windows?.onFocusChanged) {
+    browser.windows.onFocusChanged.addListener((windowId) => {
+      runGuarded('windows.onFocusChanged', async () => {
+        await handleWindowFocusChanged(windowId);
       });
     });
   }
@@ -192,6 +229,84 @@ async function handleRunnerTabMoved(tabId: number) {
   }
 }
 
+async function handleRunnerTabActivated(tabId: number, windowId: number) {
+  if (typeof tabId !== 'number' || typeof windowId !== 'number') {
+    return;
+  }
+
+  const now = Date.now();
+  await flushActiveTimerForWindow(windowId, now);
+
+  const state = await getRunnerState();
+  const session = state.sessions.find((item) => item.tabIds.includes(tabId));
+  if (!session) {
+    return;
+  }
+
+  const matchedIndex = session.tabIds.findIndex((id) => id === tabId);
+  if (matchedIndex < 0) {
+    return;
+  }
+
+  let nextSession: RoutineSession = session;
+
+  if (matchedIndex !== session.currentIndex) {
+    const shouldSuppressSync = await isRecentNavigateToStep(session, matchedIndex, now);
+    await logStepChangeForSession(
+      session,
+      matchedIndex,
+      shouldSuppressSync ? undefined : 'manual-tab-activate',
+    );
+
+    nextSession = {
+      ...session,
+      currentIndex: matchedIndex,
+      tabId,
+    };
+    await updateRoutineSession(nextSession);
+  } else if (session.tabId !== tabId) {
+    nextSession = {
+      ...session,
+      tabId,
+    };
+    await updateRoutineSession(nextSession);
+  }
+
+  await setFocusedRoutine(nextSession.routineId);
+
+  const runId = await ensureRunIdForSession(nextSession);
+  if (typeof runId !== 'number') {
+    return;
+  }
+
+  startActiveTimer({
+    windowId,
+    routineId: nextSession.routineId,
+    runId,
+    stepIndex: nextSession.currentIndex,
+    startedAt: now,
+  });
+}
+
+async function handleWindowFocusChanged(windowId: number) {
+  if (typeof windowId !== 'number') {
+    return;
+  }
+
+  if (windowId === browser.windows.WINDOW_ID_NONE) {
+    await flushAllActiveTimers(Date.now());
+    return;
+  }
+
+  await flushAllActiveTimers(Date.now());
+  const [activeTab] = await browser.tabs.query({ active: true, windowId });
+  if (typeof activeTab?.id !== 'number') {
+    return;
+  }
+
+  await handleRunnerTabActivated(activeTab.id, windowId);
+}
+
 async function handleRunnerGroupRemoved(groupId: number) {
   const state = await getRunnerState();
   const affected = state.sessions.filter((session) => session.tabGroupId === groupId);
@@ -206,7 +321,88 @@ async function handleRunnerGroupRemoved(groupId: number) {
   }
 }
 
+function startActiveTimer(timer: ActiveStepTimer) {
+  activeStepTimersByWindow.set(timer.windowId, timer);
+}
+
+async function flushActiveTimerForWindow(windowId: number, stoppedAt: number = Date.now()) {
+  const timer = activeStepTimersByWindow.get(windowId);
+  if (!timer) {
+    return;
+  }
+
+  activeStepTimersByWindow.delete(windowId);
+  const activeMs = Math.max(0, stoppedAt - timer.startedAt);
+  if (activeMs <= 0) {
+    return;
+  }
+
+  await addRunStepActiveMs(timer.runId, timer.stepIndex, activeMs);
+}
+
+async function flushAllActiveTimers(stoppedAt: number = Date.now()) {
+  const windowIds = [...activeStepTimersByWindow.keys()];
+  for (const windowId of windowIds) {
+    await flushActiveTimerForWindow(windowId, stoppedAt);
+  }
+}
+
+async function flushActiveTimersForRoutine(routineId: number, stoppedAt: number = Date.now()) {
+  const windowIds = [...activeStepTimersByWindow.entries()]
+    .filter(([, timer]) => timer.routineId === routineId)
+    .map(([windowId]) => windowId);
+
+  for (const windowId of windowIds) {
+    await flushActiveTimerForWindow(windowId, stoppedAt);
+  }
+}
+
+async function ensureRunIdForSession(session: RoutineSession): Promise<number | null> {
+  if (typeof session.runId === 'number') {
+    return session.runId;
+  }
+
+  const routine = await db.routines.get(session.routineId);
+  if (!routine) {
+    return null;
+  }
+
+  const ensured = await ensureRunForSession(session, routine, 'system');
+  if (!ensured?.runId) {
+    return null;
+  }
+
+  await updateRoutineSession({
+    ...session,
+    runId: ensured.runId,
+  });
+
+  return ensured.runId;
+}
+
+async function isRecentNavigateToStep(session: RoutineSession, stepIndex: number, now: number): Promise<boolean> {
+  if (typeof session.runId !== 'number') {
+    return false;
+  }
+
+  const latest = await db.runActionEvents
+    .where('[runId+timestamp]')
+    .between([session.runId, Dexie.minKey], [session.runId, Dexie.maxKey])
+    .reverse()
+    .first();
+
+  if (!latest) {
+    return false;
+  }
+
+  return latest.type === 'navigate'
+    && latest.toStepIndex === stepIndex
+    && Math.max(0, now - latest.timestamp) <= 1200;
+}
+
 async function finalizeSessionRun(session: Parameters<typeof updateRoutineSession>[0], reason: 'tabs-closed' | 'group-removed') {
+  await flushActiveTimersForRoutine(session.routineId, Date.now());
+
   if (typeof session.runId === 'number') {
     await finalizeRun(session.runId, session.routineId, Date.now(), reason, 'system');
     return;
@@ -226,7 +422,7 @@ async function finalizeSessionRun(session: Parameters<typeof updateRoutineSessio
 async function logStepChangeForSession(
   session: Parameters<typeof updateRoutineSession>[0],
   stepIndex: number,
-  action?: 'tab-removed-shift',
+  action?: 'tab-removed-shift' | 'manual-tab-activate',
 ) {
   const fromStepIndex = session.currentIndex;
 
@@ -269,12 +465,12 @@ async function logStepChangeForSession(
 
 function attachControllerMessageBridge() {
   browser.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
-    if (!isFocusControllerMessage(message)) {
+    if (!isRuntimeMessage(message)) {
       return undefined;
     }
 
     runGuarded('runtime.onMessage', async () => {
-      const response = await handleFocusControllerMessage(message, _sender);
+      const response = await handleRuntimeMessage(message, _sender);
       sendResponse(response);
     }, (error) => {
       sendResponse({
@@ -310,8 +506,8 @@ async function handleCommand(command: string) {
   }
 }
 
-async function handleFocusControllerMessage(
-  message: FocusControllerMessage,
+async function handleRuntimeMessage(
+  message: RuntimeMessage,
   sender?: { tab?: { id?: number } },
 ): Promise<unknown> {
   try {
@@ -376,6 +572,17 @@ async function handleFocusControllerMessage(
           ok: true,
           state: await getFocusControllerState(),
         };
+
+      case 'runner:flush-active-time':
+        if (typeof message.routineId === 'number') {
+          await flushActiveTimersForRoutine(message.routineId);
+        } else {
+          await flushAllActiveTimers();
+        }
+
+        return {
+          ok: true,
+        };
     }
   } catch (error) {
     return {
@@ -419,7 +626,7 @@ async function getFocusControllerState() {
   };
 }
 
-function isFocusControllerMessage(value: unknown): value is FocusControllerMessage {
+function isRuntimeMessage(value: unknown): value is RuntimeMessage {
   if (!value || typeof value !== 'object') {
     return false;
   }
@@ -432,6 +639,7 @@ function isFocusControllerMessage(value: unknown): value is FocusControllerMessa
     || candidate.type === 'focus-controller:navigate'
     || candidate.type === 'focus-controller:stop'
     || candidate.type === 'focus-controller:open-sidepanel'
+    || candidate.type === 'runner:flush-active-time'
   );
 }
 
