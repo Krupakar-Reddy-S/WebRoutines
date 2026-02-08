@@ -64,6 +64,7 @@ Load `.output/chrome-mv3` in `chrome://extensions` with Developer mode enabled.
 ## Docs map
 - `docs/PRD.md`: current product + architecture source of truth.
 - `docs/feature-list-*.md`: phased implementation history/plans.
+- `docs/chrome-store-readiness.md`: pre-publish checklist and status tracking for Chrome Web Store readiness.
 - `docs/extra/`: optional external/reference context for AI chat and research; not authoritative runtime source of truth.
 - `astro-site/`: external landing/docs surface (non-extension runtime).
 

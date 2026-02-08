@@ -468,7 +468,7 @@ function asNonEmpty(values: number[]): [number, ...number[]] | null {
   return values as [number, ...number[]];
 }
 
-function clampIndex(index: number, length: number): number {
+export function clampIndex(index: number, length: number): number {
   if (index <= 0) {
     return 0;
   }
@@ -505,9 +505,9 @@ async function resolveTargetWindowId(): Promise<number | null> {
   return null;
 }
 
-type TabSnapshot = { id?: number; index: number };
+export type TabSnapshot = { id?: number; index: number };
 
-function resolveGroupInsertIndex(
+export function resolveGroupInsertIndex(
   sessionTabIds: Array<number | null>,
   targetIndex: number,
   groupTabs: TabSnapshot[],

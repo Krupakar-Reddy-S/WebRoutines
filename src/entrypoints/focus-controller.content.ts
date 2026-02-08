@@ -71,7 +71,7 @@ export default defineContentScript({
         pollIntervalId = null;
       }
 
-      browser.storage.onChanged.removeListener(storageListener);
+      browser.storage?.onChanged?.removeListener(storageListener);
       window.removeEventListener('mousemove', onDragMove);
       window.removeEventListener('mouseup', onDragEnd);
       window.removeEventListener('resize', onResize);
@@ -355,7 +355,7 @@ export default defineContentScript({
       render();
     }
 
-    browser.storage.onChanged.addListener(storageListener);
+    browser.storage?.onChanged?.addListener(storageListener);
     window.addEventListener('mousemove', onDragMove);
     window.addEventListener('mouseup', onDragEnd);
     window.addEventListener('resize', onResize);

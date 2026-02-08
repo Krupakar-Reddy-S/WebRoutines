@@ -1,4 +1,9 @@
 import { db } from '@/lib/db';
+import {
+  applySessionTabRemoval,
+  isValidTabId,
+  reconcileEagerTabOrder,
+} from '@/core/runner/lifecycle';
 import { getFocusedSession as getFocusedSessionFromState } from '@/core/runner/focus';
 import {
   NAVIGATE_NEXT_COMMAND,
@@ -63,29 +68,35 @@ async function configureSidePanelAction() {
 function attachRunnerLifecycleListeners() {
   if (browser.tabGroups?.onRemoved) {
     browser.tabGroups.onRemoved.addListener((group) => {
-      const groupId = resolveGroupId(group);
+      runGuarded('tabGroups.onRemoved', async () => {
+        const groupId = resolveGroupId(group);
 
-      if (typeof groupId !== 'number') {
-        return;
-      }
+        if (typeof groupId !== 'number') {
+          return;
+        }
 
-      void handleRunnerGroupRemoved(groupId);
+        await handleRunnerGroupRemoved(groupId);
+      });
     });
   }
 
   if (browser.tabs?.onRemoved) {
     browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
-      if (removeInfo?.isWindowClosing) {
-        return;
-      }
+      runGuarded('tabs.onRemoved', async () => {
+        if (removeInfo?.isWindowClosing) {
+          return;
+        }
 
-      void handleRunnerTabRemoved(tabId);
+        await handleRunnerTabRemoved(tabId);
+      });
     });
   }
 
   if (browser.tabs?.onMoved) {
     browser.tabs.onMoved.addListener((tabId) => {
-      void handleRunnerTabMoved(tabId);
+      runGuarded('tabs.onMoved', async () => {
+        await handleRunnerTabMoved(tabId);
+      });
     });
   }
 }
@@ -112,44 +123,27 @@ async function handleRunnerTabRemoved(tabId: number) {
   const state = await getRunnerState();
 
   for (const session of state.sessions) {
-    if (!session.tabIds.includes(tabId)) {
+    const transition = applySessionTabRemoval(session, tabId);
+
+    if (!transition.affected) {
       continue;
     }
 
-    const removedIndex = session.tabIds.indexOf(tabId);
-    const nextTabIds = session.tabIds.map((id, index) => (
-      index === removedIndex ? null : id
-    ));
-    const validTabIds = nextTabIds.filter(isValidTabId);
-
-    if (validTabIds.length === 0) {
+    if (transition.shouldStop) {
       await finalizeSessionRun(session, 'tabs-closed');
       await removeRoutineSession(session.routineId);
       continue;
     }
 
-    let nextTabId = session.tabId;
-    let nextIndex = session.currentIndex;
-
-    if (session.tabId === tabId) {
-      const forwardIndex = findNextValidIndex(nextTabIds, removedIndex + 1);
-      const backwardIndex = findPreviousValidIndex(nextTabIds, removedIndex - 1);
-      const resolvedIndex = forwardIndex ?? backwardIndex ?? 0;
-
-      nextIndex = resolvedIndex;
-      nextTabId = isValidTabId(nextTabIds[resolvedIndex]) ? nextTabIds[resolvedIndex] : null;
+    if (!transition.nextSession) {
+      continue;
     }
 
-    if (nextIndex !== session.currentIndex) {
-      await logStepChangeForSession(session, nextIndex);
+    if (transition.nextIndexChanged) {
+      await logStepChangeForSession(session, transition.nextIndex);
     }
 
-    await updateRoutineSession({
-      ...session,
-      tabIds: nextTabIds,
-      tabId: nextTabId,
-      currentIndex: nextIndex >= 0 ? nextIndex : 0,
-    });
+    await updateRoutineSession(transition.nextSession);
   }
 }
 
@@ -184,42 +178,13 @@ async function handleRunnerTabMoved(tabId: number) {
       .sort((left, right) => left.index - right.index)
       .map((tab) => tab.id as number);
 
-    if (orderedIds.length === 0) {
+    const reconciliation = reconcileEagerTabOrder(session, orderedIds);
+    if (!reconciliation.changed) {
       continue;
     }
 
-    const loadedIds = session.tabIds.filter(isValidTabId);
-    if (arraysEqual(orderedIds, loadedIds)) {
-      continue;
-    }
-
-    const activeIndex = typeof session.tabId === 'number'
-      ? orderedIds.indexOf(session.tabId)
-      : 0;
-    const nextIndex = activeIndex >= 0 ? activeIndex : 0;
-    const nextTabId = typeof session.tabId === 'number' && activeIndex >= 0
-      ? session.tabId
-      : orderedIds[0] ?? null;
-
-    await updateRoutineSession({
-      ...session,
-      tabIds: orderedIds,
-      currentIndex: nextIndex,
-      tabId: nextTabId,
-    });
+    await updateRoutineSession(reconciliation.nextSession);
   }
-}
-
-function isValidTabId(id: number | null | undefined): id is number {
-  return typeof id === 'number' && id >= 0;
-}
-
-function arraysEqual(left: number[], right: number[]) {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((value, index) => value === right[index]);
 }
 
 async function handleRunnerGroupRemoved(groupId: number) {
@@ -271,33 +236,22 @@ async function logStepChangeForSession(session: Parameters<typeof updateRoutineS
   }
 }
 
-function findNextValidIndex(values: Array<number | null>, startIndex: number): number | null {
-  for (let index = startIndex; index < values.length; index += 1) {
-    if (isValidTabId(values[index])) {
-      return index;
-    }
-  }
-
-  return null;
-}
-
-function findPreviousValidIndex(values: Array<number | null>, startIndex: number): number | null {
-  for (let index = startIndex; index >= 0; index -= 1) {
-    if (isValidTabId(values[index])) {
-      return index;
-    }
-  }
-
-  return null;
-}
-
 function attachControllerMessageBridge() {
   browser.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
     if (!isFocusControllerMessage(message)) {
       return undefined;
     }
 
-    void handleFocusControllerMessage(message, _sender).then(sendResponse);
+    runGuarded('runtime.onMessage', async () => {
+      const response = await handleFocusControllerMessage(message, _sender);
+      sendResponse(response);
+    }, (error) => {
+      sendResponse({
+        ok: false,
+        error: toErrorMessage(error),
+      });
+    });
+
     return true;
   });
 }
@@ -308,7 +262,9 @@ function attachCommandListeners() {
   }
 
   browser.commands.onCommand.addListener((command) => {
-    void handleCommand(command);
+    runGuarded('commands.onCommand', async () => {
+      await handleCommand(command);
+    });
   });
 }
 
@@ -456,13 +412,24 @@ function toErrorMessage(value: unknown): string {
   return 'Unexpected controller bridge error.';
 }
 
+function runGuarded(label: string, task: () => Promise<void>, onError?: (error: unknown) => void) {
+  void task().catch((error) => {
+    console.error(`[WebRoutines][background] ${label} failed:`, error);
+    onError?.(error);
+  });
+}
+
 export default defineBackground(() => {
-  void configureSidePanelAction();
+  runGuarded('configureSidePanelAction:init', async () => {
+    await configureSidePanelAction();
+  });
   attachRunnerLifecycleListeners();
   attachControllerMessageBridge();
   attachCommandListeners();
 
   browser.runtime.onInstalled.addListener(() => {
-    void configureSidePanelAction();
+    runGuarded('runtime.onInstalled', async () => {
+      await configureSidePanelAction();
+    });
   });
 });

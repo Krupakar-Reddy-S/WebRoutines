@@ -133,6 +133,7 @@ Permissions in manifest:
 - `README.md` + `docs/PRD.md` are runtime behavior source-of-truth docs.
 - Behavior changes must update both in the same PR.
 - Feature-level execution logs belong in `docs/feature-list-*.md`.
+- Chrome Web Store pre-publish work is tracked in `docs/chrome-store-readiness.md`.
 - `docs/extra/` is for external research/context and is not authoritative for runtime behavior.
 - `astro-site/` is a static external docs/landing surface and does not define extension runtime behavior.
 
