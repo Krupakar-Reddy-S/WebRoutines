@@ -271,6 +271,7 @@ export function HistoryView({
             <StatCard
               label="Completion"
               value={`${historyData?.stats.completionRate ?? 0}%`}
+              variant="success"
             />
           </div>
         </CardContent>
@@ -295,7 +296,7 @@ export function HistoryView({
 
           {groupedRows.map((group) => (
             <section key={group.label} className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{group.label}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-brand">{group.label}</p>
               <div className="space-y-2">
                 {group.rows.map((row) => (
                   <RunHistoryCard

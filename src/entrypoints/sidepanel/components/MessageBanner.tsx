@@ -6,10 +6,10 @@ interface MessageBannerProps {
 }
 
 export function MessageBanner({ variant, message }: MessageBannerProps) {
-  const className = variant === 'error' ? 'border-destructive/30' : 'border-primary/30';
+  const className = variant === 'error' ? 'border-destructive/30 bg-destructive/5' : 'border-brand/30 bg-brand-glow';
   const role = variant === 'error' ? 'alert' : 'status';
   const ariaLive = variant === 'error' ? 'assertive' : 'polite';
-  const textClassName = variant === 'error' ? 'text-destructive' : 'text-primary';
+  const textClassName = variant === 'error' ? 'text-destructive' : 'text-brand';
 
   return (
     <Card size="sm" className={className}>

@@ -118,7 +118,12 @@ export function HistoryRunDetailView({
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={runStatus === 'Complete' ? 'secondary' : 'outline'}>{runStatus}</Badge>
+            <Badge
+              variant={runStatus === 'Complete' ? 'secondary' : 'outline'}
+              className={runStatus === 'Complete' ? 'border-brand/30 bg-brand/15 text-brand' : runStatus === 'In progress' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : ''}
+            >
+              {runStatus}
+            </Badge>
             <span className="text-muted-foreground">{run.stepsCompleted}/{run.totalSteps} steps</span>
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">
@@ -181,7 +186,7 @@ export function HistoryRunDetailView({
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                       <div
-                        className={`h-full rounded-full transition-[width] ${isLongest ? 'bg-emerald-500' : 'bg-primary'}`}
+                        className={`h-full rounded-full transition-[width] ${isLongest ? 'bg-brand' : 'bg-brand/40'}`}
                         style={{ width: `${widthPercent}%` }}
                       />
                     </div>
@@ -223,7 +228,7 @@ function ActionEventRow({ event }: { event: RunActionEvent }) {
     <div className="rounded-lg border border-border/70 px-3 py-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-medium">{actionLabel}</p>
-        <Badge variant="outline">{event.source}</Badge>
+        <Badge variant="outline" className="border-brand/20 text-brand">{event.source}</Badge>
         <span className="text-muted-foreground">{formatTimeOfDay(event.timestamp)}</span>
       </div>
       {(typeof event.fromStepIndex === 'number' || typeof event.toStepIndex === 'number') && (
@@ -252,7 +257,7 @@ function StepNoteRow({
   return (
     <div className="rounded-lg border border-border/70 px-3 py-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="font-medium">Step {note.stepIndex + 1}</p>
+        <p className="font-medium text-brand">Step {note.stepIndex + 1}</p>
         {link?.url && <span className="text-muted-foreground truncate">{safeDomainLabel(link.url)}</span>}
         <span className="text-muted-foreground">{formatTimeOfDay(note.updatedAt)}</span>
       </div>

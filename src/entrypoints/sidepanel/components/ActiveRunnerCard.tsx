@@ -30,7 +30,7 @@ export function ActiveRunnerCard({
     : 'Link count unavailable';
 
   return (
-    <div className="rounded-lg border border-border/70 p-2">
+    <div className={`rounded-lg border p-2 ${isFocused ? 'border-brand bg-brand/5' : 'border-border/70'}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-medium">{routine?.name ?? `Routine #${session.routineId}`}</p>
@@ -44,7 +44,7 @@ export function ActiveRunnerCard({
         </div>
 
         <div className="flex items-center gap-2">
-          {isFocused && <Badge variant="secondary">Focused</Badge>}
+          {isFocused && <Badge variant="secondary" className="border-brand/30 bg-brand/15 text-brand">Focused</Badge>}
           <Button type="button" size="sm" variant="outline" onClick={onFocus}>
             Focus
           </Button>
@@ -61,7 +61,7 @@ export function ActiveRunnerCard({
       </div>
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-primary transition-[width]"
+          className="h-full rounded-full bg-brand transition-[width]"
           style={{ width: `${progressPercent}%` }}
         />
       </div>

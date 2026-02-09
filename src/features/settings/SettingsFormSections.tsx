@@ -68,14 +68,14 @@ export function TabLoadingSettingsSection({
             }
           }}
         >
-          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/70 p-2">
+          <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-2 transition-colors ${settings.tabLoadMode === 'eager' ? 'border-brand bg-brand/5' : 'border-border/70'}`}>
             <RadioGroupItem value="eager" className="mt-0.5" />
             <span>
               <span className="block text-sm font-medium">Load all tabs at once</span>
               <span className="text-muted-foreground text-xs">Opens every link when you start a routine.</span>
             </span>
           </label>
-          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/70 p-2">
+          <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-2 transition-colors ${settings.tabLoadMode === 'lazy' ? 'border-brand bg-brand/5' : 'border-border/70'}`}>
             <RadioGroupItem value="lazy" className="mt-0.5" />
             <span>
               <span className="block text-sm font-medium">Load tabs as you navigate</span>

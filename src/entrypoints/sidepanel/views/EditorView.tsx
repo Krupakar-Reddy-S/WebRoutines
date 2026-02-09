@@ -479,7 +479,7 @@ export function EditorView({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Label>Schedule (optional)</Label>
-                <p className="text-xs text-muted-foreground">
+                <p className={`text-xs ${scheduleDays.length > 0 ? 'font-medium text-brand' : 'text-muted-foreground'}`}>
                   {scheduleDays.length === 0 ? 'Any day' : `${scheduleDays.length} day${scheduleDays.length === 1 ? '' : 's'} selected`}
                 </p>
               </div>
@@ -492,7 +492,7 @@ export function EditorView({
                       key={option.day}
                       type="button"
                       size="xs"
-                      variant={selected ? 'secondary' : 'outline'}
+                      variant={selected ? 'default' : 'outline'}
                       aria-pressed={selected}
                       aria-label={`Toggle ${option.ariaLabel}`}
                       onClick={() => {
@@ -540,7 +540,7 @@ export function EditorView({
                   }`}
                 >
                   <GripVerticalIcon className="size-4 text-muted-foreground" />
-                  <Badge variant="secondary">{index + 1}</Badge>
+                  <Badge variant="secondary" className="bg-brand/15 text-brand border-brand/20">{index + 1}</Badge>
                   <FaviconImage url={link.url} sizeClassName="h-4 w-4" />
                   <p className="flex-1 truncate text-xs text-muted-foreground">{getDisplayUrl(link.url)}</p>
                   <Button
