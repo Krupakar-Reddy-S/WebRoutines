@@ -8,7 +8,7 @@ interface EmptyStateProps {
 
 export function EmptyState({ title, description, action }: EmptyStateProps) {
   return (
-    <div className="rounded-lg border border-dashed border-border/70 p-3">
+    <div className="rounded-lg border border-dashed border-brand/30 bg-brand-glow p-3">
       {title && <p className="text-sm font-medium">{title}</p>}
       {description && <p className="text-sm text-muted-foreground">{description}</p>}
       {action && <div className="mt-3">{action}</div>}

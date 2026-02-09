@@ -83,3 +83,55 @@ Local checks:
 - 2026-02-08: Phase A completed (schedule model, editor toggles, list ordering, backup schedule support) with passing lint/compile/test/build/test:e2e.
 - 2026-02-08: Phase B completed (action timeline table + logging, step notes in runner, history run-detail route/view) with passing lint/compile/test/build/test:e2e.
 - 2026-02-08: Phase C completed (active step timers + manual tab step sync + history avg time/time-breakdown) with passing lint/compile/test/build/test:e2e.
+
+### Phase D — UI/UX polish, unified brand color, and extension icon
+
+Scope:
+- Unify brand accent color to `#52C972` across extension sidebar and landing page.
+- Apply Supabase-style neutral gray scale for backgrounds/borders.
+- Apply brand accent highlights across all sidebar views and components.
+- Design and ship new globe-with-arrows extension icon and LP favicon.
+
+Changes:
+
+**Extension theme (`src/entrypoints/shared/styles.css`)**
+- Replaced default shadcn OKLCH neutrals with Supabase-style gray scale (#121212 bg, #171717 card, etc.).
+- Set brand accent to `#52C972` (dark primary/ring/brand) and `#09673F` (light primary/ring).
+- Added extended palette tokens: `--brand`, `--brand-dim`, `--brand-glow`, `--fg-muted`, `--fg-faint`, `--surface-raised`, `--surface-border`.
+
+**Sidebar UI accent pass (12 component/view files)**
+- `EditorView`: day picker highlights selected days with brand accent; link index badges use brand tint.
+- `StepList`: current step gets brand border/bg/text; step dots color-coded by state.
+- `ActiveRunnerCard`: focused state uses brand border/bg; progress bar uses brand color.
+- `RunnerHomeView`: note status color-coded (brand for saved, destructive for error); focus mode box uses brand glow.
+- `EmptyState`: border/bg switched to brand tint.
+- `HistoryView`: date group headers use brand; completion stat card gets success variant.
+- `HistoryRunDetailView`: status badges, time breakdown bars, action source badges, step note labels all use brand.
+- `presentation.tsx (StatCard/RunHistoryCard)`: replaced hardcoded emerald-500 with brand; added StatCard `variant` prop.
+- `SettingsFormSections`: selected radio options get brand border/bg.
+- `MessageBanner`: success variant uses brand glow; error variant uses destructive tint.
+- `RecoveryCard`: error title uses destructive color.
+
+**Extension icon (`src/public/icon/`)**
+- Designed new globe SVG: two arc segments forming the circumference with single outer-side barb arrowheads via SVG `<marker orient="auto">`, internal lat/long lines clipped to inner circle, tilted -15deg.
+- Tightened viewBox from `0 0 128 128` to `24 24 80 80` and increased stroke widths for small-size visibility.
+- Increased internal globe line opacities (0.55–0.65) for better readability at small sizes.
+- Generated PNGs at 16/32/48/96/128 from the SVG source.
+
+**Landing page (`astro-site/`)**
+- Updated `global.css` accent vars from `#34d399`/`#059669` to `#52C972`/`#09673F`.
+- Set `--c-accent: #52C972` in both dark and light themes for consistent green across modes.
+- Replaced all `#34d399` and `rgba(52,211,153,...)` references in `hero-flow.svg`, `og-placeholder.svg`, `HeroFlow.astro`, and `Base.astro`.
+- Replaced old `icon-placeholder-128.svg` favicon/logo references with new `favicon.svg` (transparent globe) in `Base.astro` and `Nav.astro`.
+- Changed GitHub and theme toggle nav icons from muted to always-visible (`text-fg`).
+
+Checklist:
+- [x] Extension sidebar theme unified to `#52C972` brand accent.
+- [x] Brand accent applied across all sidebar views/components.
+- [x] New globe icon SVG designed with auto-oriented arrowhead markers.
+- [x] Extension icon PNGs generated at all required sizes.
+- [x] LP accent color updated to `#52C972` across CSS and all SVG assets.
+- [x] LP accent consistent across light/dark themes.
+- [x] LP favicon and nav logo replaced with new globe SVG.
+- [x] LP nav icon visibility improved.
+- [x] Extension and LP both build cleanly.

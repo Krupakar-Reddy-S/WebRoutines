@@ -22,13 +22,13 @@ export function StepList({ routineId, links, session, currentIndex, busyAction, 
         <Button
           key={link.id}
           type="button"
-          variant={index === currentIndex ? 'secondary' : 'outline'}
+          variant={index === currentIndex ? 'outline' : 'outline'}
           size="sm"
-          className="w-full justify-start"
+          className={`w-full justify-start ${index === currentIndex ? 'border-brand bg-brand/10 text-brand font-semibold' : ''}`}
           onClick={() => onJump(index)}
           disabled={disabled}
         >
-          {session.loadMode === 'lazy' && !isLoaded ? '○' : '●'} {index + 1}. {link.url}
+          <span className={index === currentIndex ? 'text-brand' : isLoaded ? 'text-brand/60' : 'text-muted-foreground/50'}>{session.loadMode === 'lazy' && !isLoaded ? '○' : '●'}</span> {index + 1}. {link.url}
         </Button>
           );
         })()

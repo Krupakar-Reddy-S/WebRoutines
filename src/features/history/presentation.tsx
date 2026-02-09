@@ -8,12 +8,13 @@ import type { HistoryRow } from '@/features/history/types';
 interface StatCardProps {
   label: string;
   value: string;
+  variant?: 'default' | 'success';
 }
 
-export function StatCard({ label, value }: StatCardProps) {
+export function StatCard({ label, value, variant = 'default' }: StatCardProps) {
   return (
-    <div className="rounded-lg border border-border/70 bg-card px-2 py-2">
-      <p className="text-sm font-semibold">{value}</p>
+    <div className={`rounded-lg border bg-card px-2 py-2 ${variant === 'success' ? 'border-brand/30' : 'border-border/70'}`}>
+      <p className={`text-sm font-semibold ${variant === 'success' ? 'text-brand' : ''}`}>{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
@@ -49,7 +50,7 @@ export function RunHistoryCard({
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          className="truncate text-left text-sm font-medium hover:underline"
+          className="truncate text-left text-sm font-medium hover:text-brand hover:underline"
           onClick={() => onFilterRoutine(run.routineId)}
         >
           {routineLabel}
@@ -70,8 +71,8 @@ export function RunHistoryCard({
         <Badge
           variant={run.stoppedAt === null ? 'outline' : run.completedFull ? 'secondary' : 'outline'}
           className={cn(
-            run.stoppedAt === null ? 'text-blue-600 dark:text-blue-400' : '',
-            run.completedFull ? 'text-emerald-700 dark:text-emerald-400' : '',
+            run.stoppedAt === null ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : '',
+            run.completedFull ? 'border-brand/30 bg-brand/15 text-brand' : '',
           )}
         >
           {completionLabel}
@@ -125,7 +126,7 @@ function StepDots({ completed, total, maxDots = 10 }: StepDotsProps) {
             key={index}
             className={cn(
               'h-1.5 w-1.5 rounded-full',
-              index < safeCompleted ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+              index < safeCompleted ? 'bg-brand' : 'bg-muted-foreground/30',
             )}
           />
         ))}
@@ -144,7 +145,7 @@ function StepDots({ completed, total, maxDots = 10 }: StepDotsProps) {
           key={`h-${index}`}
           className={cn(
             'h-1.5 w-1.5 rounded-full',
-            index < safeCompleted ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+            index < safeCompleted ? 'bg-brand' : 'bg-muted-foreground/30',
           )}
         />
       ))}
@@ -156,7 +157,7 @@ function StepDots({ completed, total, maxDots = 10 }: StepDotsProps) {
             key={`t-${index}`}
             className={cn(
               'h-1.5 w-1.5 rounded-full',
-              index < safeCompleted ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+              index < safeCompleted ? 'bg-brand' : 'bg-muted-foreground/30',
             )}
           />
         );

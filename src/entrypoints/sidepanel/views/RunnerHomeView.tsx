@@ -155,6 +155,8 @@ export function RunnerHomeView({
     return null;
   }, [focusedRoutine, focusedSession?.routineId, routineById, stopDialogRoutineId]);
 
+  const canEditStepNote = typeof focusedSession?.runId === 'number';
+
   useEffect(() => {
     void getRunnerState().then(setRunnerState);
     const unsubscribe = subscribeToRunnerState(setRunnerState);
@@ -502,7 +504,7 @@ export function RunnerHomeView({
                 Enter focus mode
               </Button>
               {!settings.focusModeEnabled && (
-                <div className="space-y-2 rounded-lg border border-dashed border-border/70 p-2">
+                <div className="space-y-2 rounded-lg border border-dashed border-brand/30 bg-brand-glow p-2">
                   <p className="text-xs text-muted-foreground">Focus mode is currently disabled.</p>
                   <Button type="button" size="xs" variant="outline" onClick={() => void onQuickEnableFocusMode()}>
                     Enable focus mode
@@ -514,23 +516,33 @@ export function RunnerHomeView({
                 <p className="text-xs font-medium text-muted-foreground">Step note</p>
                 <Textarea
                   value={stepNoteDraft}
+                  disabled={!canEditStepNote}
                   onChange={(event) => {
+                    if (!canEditStepNote) {
+                      return;
+                    }
+
                     setStepNoteDraft(event.target.value);
                     setStepNoteDirty(true);
                     setNoteStatus('idle');
                   }}
                   onBlur={() => {
+                    if (!canEditStepNote) {
+                      return;
+                    }
+
                     void flushFocusedStepNote();
                   }}
                   rows={3}
                   maxLength={2000}
                   placeholder="Add a note for this step..."
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className={`text-[11px] ${noteStatus === 'saved' ? 'text-brand' : noteStatus === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {!canEditStepNote && 'Start or resume this run to add notes'}
                   {noteStatus === 'saving' && 'Saving...'}
                   {noteStatus === 'saved' && 'Saved'}
                   {noteStatus === 'error' && 'Failed to save note'}
-                  {noteStatus === 'idle' && 'Notes are saved to this run only'}
+                  {canEditStepNote && noteStatus === 'idle' && 'Notes are saved to this run only'}
                 </p>
               </div>
 

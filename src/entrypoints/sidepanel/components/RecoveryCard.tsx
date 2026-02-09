@@ -9,7 +9,7 @@ export function RecoveryCard({ onReset }: RecoveryCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Something went wrong</CardTitle>
+        <CardTitle className="text-destructive">Something went wrong</CardTitle>
         <CardDescription>Reset the view to recover the sidepanel UI.</CardDescription>
       </CardHeader>
       <CardContent>
