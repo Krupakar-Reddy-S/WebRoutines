@@ -32,6 +32,7 @@ import {
 } from '@/lib/session';
 import { useSettings } from '@/lib/use-settings';
 import { formatElapsed } from '@/lib/time';
+import { formatDuration } from '@/features/history/filtering';
 import type { Routine, RoutineSession } from '@/lib/types';
 
 import { ActiveRunnerCard } from '../components/ActiveRunnerCard';
@@ -154,6 +155,30 @@ export function RunnerHomeView({
 
     return null;
   }, [focusedRoutine, focusedSession?.routineId, routineById, stopDialogRoutineId]);
+
+  const stopDialogRun = useLiveQuery(
+    async () => {
+      if (typeof stopDialogSession?.runId !== 'number') {
+        return null;
+      }
+
+      return (await db.runs.get(stopDialogSession.runId)) ?? null;
+    },
+    [stopDialogSession?.runId],
+  );
+
+  const stopDialogAnalytics = useMemo(() => {
+    const totalSteps = stopDialogRoutine?.links.length ?? 0;
+    const currentStep = stopDialogSession
+      ? Math.min(stopDialogSession.currentIndex + 1, totalSteps || 1)
+      : 0;
+    const completionPercent = totalSteps > 0 ? Math.round((currentStep / totalSteps) * 100) : 0;
+    const notesCount = stopDialogRun?.stepNotes?.length ?? 0;
+    const totalActiveMs = stopDialogRun?.stepTimes?.reduce((sum, st) => sum + st.activeMs, 0) ?? 0;
+    const activeTimeLabel = totalActiveMs > 0 ? formatDuration(totalActiveMs) : null;
+
+    return { completionPercent, notesCount, activeTimeLabel };
+  }, [stopDialogRoutine, stopDialogSession, stopDialogRun]);
 
   const canEditStepNote = typeof focusedSession?.runId === 'number';
 
@@ -449,10 +474,16 @@ export function RunnerHomeView({
 
           {focusedSession && focusedRoutine && (
             <>
-              <div className="space-y-1 text-sm">
+              <div className="space-y-1.5 text-sm">
                 <p className="font-medium">
                   {focusedRoutine.name} ({focusedSession.currentIndex + 1}/{focusedRoutine.links.length})
                 </p>
+                <div className="h-1.5 w-full rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-brand transition-all"
+                    style={{ width: `${focusedRoutine.links.length > 0 ? Math.round(((focusedSession.currentIndex + 1) / focusedRoutine.links.length) * 100) : 0}%` }}
+                  />
+                </div>
                 {currentLink && <p className="break-all text-xs text-muted-foreground">Current: {currentLink.url}</p>}
               </div>
 
@@ -584,6 +615,9 @@ export function RunnerHomeView({
           return `${Math.min(stopDialogSession.currentIndex + 1, totalSteps)}/${totalSteps}`;
         })()}
         elapsedLabel={stopDialogSession ? formatElapsed(stopDialogSession.startedAt, clockNow) : 'N/A'}
+        completionPercent={stopDialogAnalytics.completionPercent}
+        notesCount={stopDialogAnalytics.notesCount}
+        activeTimeLabel={stopDialogAnalytics.activeTimeLabel}
         onConfirm={() => {
           if (typeof stopDialogRoutineId !== 'number') {
             return;

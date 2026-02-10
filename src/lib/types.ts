@@ -60,8 +60,6 @@ export interface RoutineSession {
 
 export type RunStopReason = 'user-stop' | 'tabs-closed' | 'group-removed' | 'system-stop' | 'unknown';
 
-export type RoutineRunEventType = 'start' | 'step' | 'stop';
-
 export interface RoutineRun {
   id?: number;
   routineId: number;
@@ -75,15 +73,6 @@ export interface RoutineRun {
   stopReason?: RunStopReason;
   stepNotes?: RunStepNote[];
   stepTimes?: RunStepTime[];
-}
-
-export interface RoutineRunEvent {
-  id?: number;
-  runId: number;
-  routineId: number;
-  timestamp: number;
-  type: RoutineRunEventType;
-  stepIndex?: number;
 }
 
 export interface RunActionEvent {

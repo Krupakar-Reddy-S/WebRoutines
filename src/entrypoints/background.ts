@@ -30,7 +30,6 @@ import {
   ensureRunForSession,
   finalizeRun,
   logRunStepSyncAction,
-  logStepChange,
 } from '@/lib/run-history';
 import type { RoutineSession } from '@/lib/types';
 
@@ -424,20 +423,21 @@ async function logStepChangeForSession(
   stepIndex: number,
   action?: 'tab-removed-shift' | 'manual-tab-activate',
 ) {
+  if (!action) {
+    return;
+  }
+
   const fromStepIndex = session.currentIndex;
 
   if (typeof session.runId === 'number') {
-    await logStepChange(session.runId, session.routineId, stepIndex);
-    if (action) {
-      await logRunStepSyncAction({
-        runId: session.runId,
-        routineId: session.routineId,
-        source: 'system',
-        action,
-        fromStepIndex,
-        toStepIndex: stepIndex,
-      });
-    }
+    await logRunStepSyncAction({
+      runId: session.runId,
+      routineId: session.routineId,
+      source: 'system',
+      action,
+      fromStepIndex,
+      toStepIndex: stepIndex,
+    });
     return;
   }
 
@@ -449,17 +449,14 @@ async function logStepChangeForSession(
   const ensured = await ensureRunForSession(session, routine, 'system');
   if (ensured?.runId) {
     await updateRoutineSession({ ...session, runId: ensured.runId });
-    await logStepChange(ensured.runId, session.routineId, stepIndex);
-    if (action) {
-      await logRunStepSyncAction({
-        runId: ensured.runId,
-        routineId: session.routineId,
-        source: 'system',
-        action,
-        fromStepIndex,
-        toStepIndex: stepIndex,
-      });
-    }
+    await logRunStepSyncAction({
+      runId: ensured.runId,
+      routineId: session.routineId,
+      source: 'system',
+      action,
+      fromStepIndex,
+      toStepIndex: stepIndex,
+    });
   }
 }
 

@@ -83,6 +83,7 @@ Local checks:
 - 2026-02-08: Phase A completed (schedule model, editor toggles, list ordering, backup schedule support) with passing lint/compile/test/build/test:e2e.
 - 2026-02-08: Phase B completed (action timeline table + logging, step notes in runner, history run-detail route/view) with passing lint/compile/test/build/test:e2e.
 - 2026-02-08: Phase C completed (active step timers + manual tab step sync + history avg time/time-breakdown) with passing lint/compile/test/build/test:e2e.
+- 2026-02-10: Phase E completed (schema consolidation, stop dialog analytics, focused runner progress bar) with passing lint/compile/test/build/test:e2e.
 
 ### Phase D — UI/UX polish, unified brand color, and extension icon
 
@@ -135,3 +136,36 @@ Checklist:
 - [x] LP favicon and nav logo replaced with new globe SVG.
 - [x] LP nav icon visibility improved.
 - [x] Extension and LP both build cleanly.
+
+### Phase E — Schema consolidation, stop dialog analytics, runner polish
+
+Scope:
+- Consolidate duplicate event schemas: retire legacy `runEvents` table in favour of `runActionEvents`.
+- Enhance stop confirmation dialog with useful run analytics.
+- Add progress bar to focused runner section.
+
+Changes:
+
+**Schema consolidation (`src/lib/run-history.ts`, `src/lib/navigation.ts`, `src/entrypoints/background.ts`, `src/lib/types.ts`, `src/lib/db.ts`)**
+- Removed `logRunEvent()` private function and all calls (wrote to legacy `runEvents` table).
+- Removed exported `logStepChange()` function and all call sites — data already captured by `logRunNavigationAction` and `logRunStepSyncAction`.
+- Updated `finalizeRun()` to derive `maxStepIndex` from `runActionEvents.toStepIndex` instead of `runEvents.stepIndex`.
+- Removed `RoutineRunEventType` type and `RoutineRunEvent` interface from types.
+- Removed `runEvents` table property from Dexie class (schema strings kept for migration chain).
+- Simplified `logStepChangeForSession()` in background — early-returns when no sync action needed.
+
+**Stop dialog analytics (`src/components/StopRunnerDialog.tsx`, `src/entrypoints/sidepanel/views/RunnerHomeView.tsx`, `src/entrypoints/popup/App.tsx`)**
+- Added `completionPercent`, `notesCount`, `activeTimeLabel` props to `StopRunnerDialog`.
+- Stop dialog now shows progress bar, completion %, tracked active time, and step notes count.
+- Both sidepanel RunnerHomeView and popup App query the run record and compute analytics for the dialog.
+
+**Focused runner progress bar (`src/entrypoints/sidepanel/views/RunnerHomeView.tsx`)**
+- Added slim brand-colored progress bar below the step counter in the focused runner section.
+
+Checklist:
+- [x] Legacy `runEvents` writes removed; `finalizeRun` uses `runActionEvents`.
+- [x] `logStepChange` function and all call sites removed.
+- [x] Legacy types (`RoutineRunEventType`, `RoutineRunEvent`) removed.
+- [x] Stop dialog shows progress bar, completion %, active time, notes count.
+- [x] Focused runner section has visual progress bar.
+- [x] Verification gates passed (lint/compile/test/build/test:e2e).

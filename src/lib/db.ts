@@ -1,11 +1,10 @@
 import Dexie, { type Table } from 'dexie';
 
-import type { Routine, RoutineRun, RoutineRunEvent, RunActionEvent } from '@/lib/types';
+import type { Routine, RoutineRun, RunActionEvent } from '@/lib/types';
 
 class WebRoutinesDb extends Dexie {
   routines!: Table<Routine, number>;
   runs!: Table<RoutineRun, number>;
-  runEvents!: Table<RoutineRunEvent, number>;
   runActionEvents!: Table<RunActionEvent, number>;
 
   constructor() {

@@ -16,6 +16,9 @@ interface StopRunnerDialogProps {
   routineLabel: string;
   stepLabel: string;
   elapsedLabel: string;
+  completionPercent: number;
+  notesCount: number;
+  activeTimeLabel: string | null;
 }
 
 export function StopRunnerDialog({
@@ -26,6 +29,9 @@ export function StopRunnerDialog({
   routineLabel,
   stepLabel,
   elapsedLabel,
+  completionPercent,
+  notesCount,
+  activeTimeLabel,
 }: StopRunnerDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -37,10 +43,29 @@ export function StopRunnerDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-lg border border-border/70 bg-muted/40 p-2 text-xs text-muted-foreground">
+        <div className="space-y-2 rounded-lg border border-border/70 bg-muted/40 p-2.5 text-xs text-muted-foreground">
           <p><span className="font-medium text-foreground">Routine:</span> {routineLabel}</p>
-          <p className="mt-1"><span className="font-medium text-foreground">Progress:</span> {stepLabel}</p>
-          <p className="mt-1"><span className="font-medium text-foreground">Elapsed:</span> {elapsedLabel}</p>
+
+          <div>
+            <div className="flex items-baseline justify-between">
+              <p><span className="font-medium text-foreground">Progress:</span> {stepLabel}</p>
+              <span className="tabular-nums">{completionPercent}%</span>
+            </div>
+            <div className="mt-1 h-1.5 w-full rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-brand transition-all"
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
+          </div>
+
+          <p><span className="font-medium text-foreground">Elapsed:</span> {elapsedLabel}</p>
+          {activeTimeLabel && (
+            <p><span className="font-medium text-foreground">Active time:</span> {activeTimeLabel}</p>
+          )}
+          {notesCount > 0 && (
+            <p><span className="font-medium text-foreground">Notes:</span> {notesCount} step {notesCount === 1 ? 'note' : 'notes'}</p>
+          )}
         </div>
 
         <DialogFooter className="flex-row gap-2 sm:flex-row sm:justify-end">
