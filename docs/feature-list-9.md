@@ -83,6 +83,7 @@ Local checks:
 - 2026-02-08: Phase A completed (schedule model, editor toggles, list ordering, backup schedule support) with passing lint/compile/test/build/test:e2e.
 - 2026-02-08: Phase B completed (action timeline table + logging, step notes in runner, history run-detail route/view) with passing lint/compile/test/build/test:e2e.
 - 2026-02-08: Phase C completed (active step timers + manual tab step sync + history avg time/time-breakdown) with passing lint/compile/test/build/test:e2e.
+- 2026-02-08: Phase D completed (unified brand color, sidebar accent pass, globe icon, LP color/favicon update) with passing lint/compile/build.
 - 2026-02-10: Phase E completed (schema consolidation, stop dialog analytics, focused runner progress bar) with passing lint/compile/test/build/test:e2e.
 
 ### Phase D — UI/UX polish, unified brand color, and extension icon

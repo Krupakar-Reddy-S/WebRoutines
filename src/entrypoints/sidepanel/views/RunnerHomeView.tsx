@@ -21,7 +21,7 @@ import {
   openCurrentSessionLink,
   stopActiveRoutine,
 } from '@/lib/navigation';
-import { upsertRunStepNote } from '@/lib/run-history';
+import { MAX_STEP_NOTE_LENGTH, upsertRunStepNote } from '@/lib/run-history';
 import { formatNavigationShortcutPair, useNavigationShortcuts } from '@/lib/navigation-shortcuts';
 import { setSettingsPatch } from '@/lib/settings';
 import {
@@ -565,15 +565,19 @@ export function RunnerHomeView({
                     void flushFocusedStepNote();
                   }}
                   rows={3}
-                  maxLength={2000}
+                  maxLength={MAX_STEP_NOTE_LENGTH}
                   placeholder="Add a note for this step..."
                 />
                 <p className={`text-[11px] ${noteStatus === 'saved' ? 'text-brand' : noteStatus === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {!canEditStepNote && 'Start or resume this run to add notes'}
-                  {noteStatus === 'saving' && 'Saving...'}
-                  {noteStatus === 'saved' && 'Saved'}
-                  {noteStatus === 'error' && 'Failed to save note'}
-                  {canEditStepNote && noteStatus === 'idle' && 'Notes are saved to this run only'}
+                  {!canEditStepNote
+                    ? 'Start or resume this run to add notes'
+                    : noteStatus === 'saving'
+                      ? 'Saving...'
+                      : noteStatus === 'saved'
+                        ? 'Saved'
+                        : noteStatus === 'error'
+                          ? 'Failed to save note'
+                          : 'Notes are saved to this run only'}
                 </p>
               </div>
 

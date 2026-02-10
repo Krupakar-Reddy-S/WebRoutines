@@ -16,7 +16,7 @@ interface EnsureRunResult {
   created: boolean;
 }
 
-const MAX_STEP_NOTE_LENGTH = 2_000;
+export const MAX_STEP_NOTE_LENGTH = 2_000;
 
 export async function createRunForSession(
   routine: Routine,
