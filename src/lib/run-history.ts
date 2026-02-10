@@ -5,7 +5,6 @@ import type {
   RunActionEventAction,
   RunActionEventSource,
   RoutineRun,
-  RoutineRunEventType,
   RoutineSession,
   RunStopReason,
   RunStepNote,
@@ -39,7 +38,6 @@ export async function createRunForSession(
   };
 
   const runId = await db.runs.add(run);
-  await logRunEvent(runId, routine.id!, 'start', session.currentIndex, session.startedAt);
   await logRunActionEvent({
     runId,
     routineId: routine.id!,
@@ -69,15 +67,6 @@ export async function ensureRunForSession(
   return { runId, created: true };
 }
 
-export async function logStepChange(
-  runId: number,
-  routineId: number,
-  stepIndex: number,
-  timestamp: number = Date.now(),
-): Promise<void> {
-  await logRunEvent(runId, routineId, 'step', stepIndex, timestamp);
-}
-
 export async function finalizeRun(
   runId: number,
   routineId: number,
@@ -93,10 +82,10 @@ export async function finalizeRun(
   const routine = await db.routines.get(routineId);
   const totalSteps = routine?.links.length ?? run.totalSteps ?? 0;
 
-  const events = await db.runEvents.where('runId').equals(runId).toArray();
-  const maxStepIndex = events
-    .filter((event) => typeof event.stepIndex === 'number')
-    .reduce((max, event) => Math.max(max, event.stepIndex ?? max), -1);
+  const actionEvents = await db.runActionEvents.where('runId').equals(runId).toArray();
+  const maxStepIndex = actionEvents
+    .filter((event) => typeof event.toStepIndex === 'number')
+    .reduce((max, event) => Math.max(max, event.toStepIndex!, max), -1);
 
   const stepsCompleted = totalSteps > 0
     ? Math.min(Math.max(maxStepIndex + 1, 1), totalSteps)
@@ -113,7 +102,6 @@ export async function finalizeRun(
     stopReason,
   });
 
-  await logRunEvent(runId, routineId, 'stop', undefined, stoppedAt);
   await logRunActionEvent({
     runId,
     routineId,
@@ -245,22 +233,6 @@ export async function logRunStepSyncAction(input: {
 
 export async function logRunActionEvent(event: Omit<RunActionEvent, 'id'>): Promise<void> {
   await db.runActionEvents.add(event);
-}
-
-async function logRunEvent(
-  runId: number,
-  routineId: number,
-  type: RoutineRunEventType,
-  stepIndex?: number,
-  timestamp: number = Date.now(),
-): Promise<void> {
-  await db.runEvents.add({
-    runId,
-    routineId,
-    timestamp,
-    type,
-    stepIndex,
-  });
 }
 
 function resolveStopAction(stopReason: RunStopReason): Extract<

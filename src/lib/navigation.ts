@@ -13,7 +13,6 @@ import {
   ensureRunForSession,
   finalizeRun,
   logRunNavigationAction,
-  logStepChange,
 } from '@/lib/run-history';
 import { getSettings } from '@/lib/settings';
 import type { Routine, RoutineSession, RunActionEventSource, RunStopReason, TabLoadMode } from '@/lib/types';
@@ -207,10 +206,6 @@ export async function navigateToIndex(
 
   if (typeof runId === 'number') {
     nextSession.runId = runId;
-  }
-
-  if (targetIndex !== session.currentIndex && typeof runId === 'number' && routine.id) {
-    await logStepChange(runId, routine.id, targetIndex);
   }
 
   if (typeof runId === 'number' && routine.id && actionContext) {

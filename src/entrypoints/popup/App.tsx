@@ -30,6 +30,7 @@ import {
   subscribeToRunnerState,
 } from '@/lib/session';
 import { formatElapsed } from '@/lib/time';
+import { formatDuration } from '@/features/history/filtering';
 import { useSettings } from '@/lib/use-settings';
 import type { RoutineSession } from '@/lib/types';
 
@@ -70,6 +71,30 @@ function App() {
 
     return routine.links[focusedSession.currentIndex] ?? null;
   }, [routine, focusedSession]);
+
+  const focusedRun = useLiveQuery(
+    async () => {
+      if (typeof focusedSession?.runId !== 'number') {
+        return null;
+      }
+
+      return (await db.runs.get(focusedSession.runId)) ?? null;
+    },
+    [focusedSession?.runId],
+  );
+
+  const stopDialogAnalytics = useMemo(() => {
+    const totalSteps = routine?.links.length ?? 0;
+    const currentStep = focusedSession
+      ? Math.min(focusedSession.currentIndex + 1, totalSteps || 1)
+      : 0;
+    const completionPercent = totalSteps > 0 ? Math.round((currentStep / totalSteps) * 100) : 0;
+    const notesCount = focusedRun?.stepNotes?.length ?? 0;
+    const totalActiveMs = focusedRun?.stepTimes?.reduce((sum, st) => sum + st.activeMs, 0) ?? 0;
+    const activeTimeLabel = totalActiveMs > 0 ? formatDuration(totalActiveMs) : null;
+
+    return { completionPercent, notesCount, activeTimeLabel };
+  }, [routine, focusedSession, focusedRun]);
 
   const onNavigate = useCallback(async (offset: number) => {
     if (!focusedSession) {
@@ -381,6 +406,9 @@ function App() {
           return `${Math.min(focusedSession.currentIndex + 1, totalSteps)}/${totalSteps}`;
         })()}
         elapsedLabel={focusedSession ? formatElapsed(focusedSession.startedAt, clockNow) : 'N/A'}
+        completionPercent={stopDialogAnalytics.completionPercent}
+        notesCount={stopDialogAnalytics.notesCount}
+        activeTimeLabel={stopDialogAnalytics.activeTimeLabel}
         onConfirm={() => {
           void executeStopRoutine();
         }}
